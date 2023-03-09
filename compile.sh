@@ -1,4 +1,4 @@
 #!/bin/bash
 
-docker build -t huzaifa/workspace/yoga-lab:vivaldi -f Dockerfile.hks .
-docker push huzaifa/workspace/yoga-lab
+docker build -t huzaifasuri/vivaldi:mayo_retina -f Dockerfile.hks .
+docker push huzaifasuri/vivaldi:mayo_retina

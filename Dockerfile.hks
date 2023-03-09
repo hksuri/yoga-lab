@@ -50,8 +50,8 @@ RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py38
  && conda clean -ya
 
 # create and activate new python environment called 'base_env'
-RUN conda create -n vivaldi_base python=3.8
-RUN echo "source activate vivaldi_base" >> ~/.bashrc
+RUN conda create -n mayo_retina python=3.9.13
+RUN echo "source activate mayo_retina" >> ~/.bashrc
 RUN /bin/bash -c "source ~/.bashrc"
 
 # install core libraries
@@ -71,7 +71,7 @@ RUN pip install joblib
 # RUN pip install -U mne_features
 
 # install pytorch + pytorch geometric + pytorch captum
-RUN conda install pytorch==1.7.0 torchvision==0.8.0 cudatoolkit=11.0 -c pytorch
+RUN conda install pytorch==1.12.1 torchvision==0.13.1 cudatoolkit=10.2 -c pytorch
 RUN pip install torch-scatter==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 RUN pip install torch-sparse==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 RUN pip install torch-cluster==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
@@ -110,9 +110,9 @@ RUN pip install black
 # RUN pip install zarr
 
 # libraries for experiment tracking
-RUN pip install tensorboard
-RUN pip install comet_ml
-RUN pip install neptune-client
+# RUN pip install tensorboard
+# RUN pip install comet_ml
+# RUN pip install neptune-client
 # RUN pip install comet_ml --upgrade
 
 # for debugging
@@ -128,6 +128,9 @@ RUN pip install git+https://github.com/ahwillia/tensortools
 RUN pip install fooof
 RUN pip install statsmodels
 
+# Expose ports
+EXPOSE 2198
+
 # Create some command aliases and turn off jupyter notebook tokens
 RUN echo 'alias python="/home/user/miniconda/bin/python"' >> /home/user/.bashrc
 RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --allow-root"' >> /home/user/.bashrc
@@ -138,8 +141,8 @@ RUN mkdir -p /home/user/.jupyter && echo "c.NotebookApp.token = u'ae7dtplfx'" >>
 ENV NUMBA_CACHE_DIR=/tmp/numba_cache
 ENV MPLCONFIGDIR=/tmp/matplotlib_cache
 
-ENV TORCH_HOME=/home/huzaifa/for_sf
-ENV SENTENCE_TRANSFORMERS_HOME=/home/huzaifa/for_sf
+# ENV TORCH_HOME=/home/huzaifa/for_sf
+# ENV SENTENCE_TRANSFORMERS_HOME=/home/huzaifa/for_sf
 
 # What should we run when the container is launched
 ENTRYPOINT ["/bin/bash"]
