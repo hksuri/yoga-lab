@@ -50,8 +50,8 @@ RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py38
  && conda clean -ya
 
 # create and activate new python environment called 'base_env'
-RUN conda create -n base_env python=3.8
-RUN echo "source activate base_env" >> ~/.bashrc
+RUN conda create -n vivaldi_base python=3.8
+RUN echo "source activate vivaldi_base" >> ~/.bashrc
 RUN /bin/bash -c "source ~/.bashrc"
 
 # install core libraries
@@ -139,7 +139,7 @@ ENV NUMBA_CACHE_DIR=/tmp/numba_cache
 ENV MPLCONFIGDIR=/tmp/matplotlib_cache
 
 ENV TORCH_HOME=/home/huzaifa/for_sf
-ENV SENTENCE_TRANSFORMERS_HOME=/home/neeraj/for_sf
+ENV SENTENCE_TRANSFORMERS_HOME=/home/huzaifa/for_sf
 
 # What should we run when the container is launched
 ENTRYPOINT ["/bin/bash"]
