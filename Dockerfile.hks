@@ -2,10 +2,15 @@
 
 FROM nvidia/cuda:11.1-base-ubuntu20.04
 
-USER root
+ENV DEBIAN_FRONTEND noninteractive
 
-# https://github.com/NVIDIA/nvidia-docker/issues/1631
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.cn/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+RUN rm /etc/apt/sources.list.d/cuda.list
+RUN rm /etc/apt/sources.list.d/nvidia-ml.list
+RUN apt-key del 7fa2af80
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu2004/x86_64/7fa2af80.pub
+
+USER root
 
 # Install some basic utilities
 RUN apt-get update && apt-get install -y \
@@ -19,6 +24,18 @@ RUN apt-get update && apt-get install -y \
     apt-utils \
     unzip \
     tar \
+    ffmpeg \ 
+    libsm6 \
+    libxext6 \
+    # python3-opencv \
+    python3-pip \
+    libsvm-dev \
+    build-essential \
+    libgtk2.0-dev \ 
+    pkg-config \ 
+    libavcodec-dev \ 
+    libavformat-dev \ 
+    libswscale-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # Create a working directory
@@ -30,10 +47,6 @@ RUN adduser --disabled-password --gecos '' --shell /bin/bash user \
 && chown -R user:user /app
 RUN echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-user
 USER user
-
-# RUN useradd -m user --shell /bin/bash && echo "user:user" | chpasswd && adduser user sudo \
-# && chown -R user:user /app
-# USER user
 
 # All users can use /home/user as their home directory
 ENV HOME=/home/user
@@ -49,46 +62,40 @@ RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py38
  && conda install -y python==3.8.1 \
  && conda clean -ya
 
-# create and activate new python environment called 'base_env'
-RUN conda create -n mayo_retina python=3.9.13
+# create and activate new python environment called 'mayo_retina'
+RUN conda create -n mayo_retina python=3.8
 RUN echo "source activate mayo_retina" >> ~/.bashrc
 RUN /bin/bash -c "source ~/.bashrc"
 
 # install core libraries
 RUN pip install scipy
-RUN pip install numpy
+RUN pip install numpy==1.21.2
 RUN pip install scikit-learn
 RUN pip install pandas
 RUN pip install jupyter
+RUN pip install h5py
 RUN pip install graphviz
 RUN pip install pydot
 RUN pip install keras
 RUN pip install matplotlib
 RUN pip install seaborn
 RUN pip install joblib
+RUN pip install opencv-contrib-python
 # RUN pip install -U mne
 # RUN pip install -U mne-connectivity
 # RUN pip install -U mne_features
 
 # install pytorch + pytorch geometric + pytorch captum
-RUN conda install pytorch==1.12.1 torchvision==0.13.1 cudatoolkit=10.2 -c pytorch
+RUN conda install pytorch==1.7.0 torchvision==0.8.0 cudatoolkit=11.0 -c pytorch
 RUN pip install torch-scatter==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 RUN pip install torch-sparse==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 RUN pip install torch-cluster==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 RUN pip install torch-spline-conv==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
 RUN pip install torch-geometric
 RUN pip install captum
-# RUN pip install torchmetrics
-
-# # install dash + dash components
-# RUN pip install dash
-# RUN pip install dash-uploader
-# RUN pip install visdcc
-# RUN pip install dash_daq
-# RUN pip install dash_table
-# RUN pip install dash_cytoscape
-# RUN pip install dash-bootstrap-components
-# RUN pip install dash-extensions
+RUN pip install tensorboard
+RUN pip install pyfits
+RUN pip install torchmetrics
 
 # misc libraries
 RUN pip install glob2
@@ -123,17 +130,20 @@ RUN pip install ipdb
 # RUN pip install openpyxl
 
 # for tensor decomposition and PSD modeling
-RUN pip install -U tensorly
-RUN pip install git+https://github.com/ahwillia/tensortools
-RUN pip install fooof
-RUN pip install statsmodels
+# RUN pip install -U tensorly
+# RUN pip install git+https://github.com/ahwillia/tensortools
+# RUN pip install fooof
+# RUN pip install statsmodels
 
-# Expose ports
-# EXPOSE 8891
+# RUN pip install tensorflow
+RUN pip install -U scikit-image
+RUN TMPDIR=/mnt/ssd_4tb_0/huzaifa/tmp/ pip install SimpleITK
+RUN pip install --upgrade pip setuptools wheel
+RUN CMAKE_ARGS="-DOPENCV_ENABLE_NONFREE=ON" pip install --no-binary=opencv-contrib-python opencv-contrib-python
 
 # Create some command aliases and turn off jupyter notebook tokens
 RUN echo 'alias python="/home/user/miniconda/bin/python"' >> /home/user/.bashrc
-RUN echo 'alias jp="jupyter notebook --port=8891 --no-browser --ip=0.0.0.0 --allow-root"' >> /home/user/.bashrc
+RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --port=8892 --allow-root"' >> /home/user/.bashrc
 RUN mkdir -p /home/user/.jupyter && echo "c.NotebookApp.token = u'sh3r10ck3d'" >> /home/user/.jupyter/jupyter_notebook_config.py && echo "c.NotebookApp.notebook_dir = '/home/huzaifa'" >> /home/user/.jupyter/jupyter_notebook_config.py
 
 # set environment variables
