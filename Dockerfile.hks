@@ -143,7 +143,7 @@ RUN CMAKE_ARGS="-DOPENCV_ENABLE_NONFREE=ON" pip install --no-binary=opencv-contr
 
 # Create some command aliases and turn off jupyter notebook tokens
 RUN echo 'alias python="/home/user/miniconda/bin/python"' >> /home/user/.bashrc
-RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --port=8892 --allow-root"' >> /home/user/.bashrc
+RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --port=8893 --allow-root"' >> /home/user/.bashrc
 RUN mkdir -p /home/user/.jupyter && echo "c.NotebookApp.token = u'sh3r10ck3d'" >> /home/user/.jupyter/jupyter_notebook_config.py && echo "c.NotebookApp.notebook_dir = '/home/huzaifa'" >> /home/user/.jupyter/jupyter_notebook_config.py
 
 # set environment variables
