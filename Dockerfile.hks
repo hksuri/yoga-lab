@@ -63,8 +63,10 @@ RUN curl -sLo ~/miniconda.sh https://repo.continuum.io/miniconda/Miniconda3-py38
  && conda clean -ya
 
 # create and activate new python environment called 'mayo_retina'
-RUN conda create -n mayo_retina python=3.8
-RUN echo "source activate mayo_retina" >> ~/.bashrc
+# RUN conda create -n mayo_retina python=3.8
+# RUN echo "source activate mayo_retina" >> ~/.bashrc
+RUN conda create -n fpn_5 python=3.8
+RUN echo "source activate fpn_5" >> ~/.bashrc
 RUN /bin/bash -c "source ~/.bashrc"
 
 # install core libraries
@@ -143,7 +145,7 @@ RUN CMAKE_ARGS="-DOPENCV_ENABLE_NONFREE=ON" pip install --no-binary=opencv-contr
 
 # Create some command aliases and turn off jupyter notebook tokens
 RUN echo 'alias python="/home/user/miniconda/bin/python"' >> /home/user/.bashrc
-RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --port=8893 --allow-root"' >> /home/user/.bashrc
+RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --port=8895 --allow-root"' >> /home/user/.bashrc
 RUN mkdir -p /home/user/.jupyter && echo "c.NotebookApp.token = u'sh3r10ck3d'" >> /home/user/.jupyter/jupyter_notebook_config.py && echo "c.NotebookApp.notebook_dir = '/home/huzaifa'" >> /home/user/.jupyter/jupyter_notebook_config.py
 
 # set environment variables
