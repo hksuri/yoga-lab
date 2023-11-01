@@ -70,8 +70,8 @@ def train(model, train_loader, val_loader, test_loader, num_epochs, learning_rat
 def main():
     
     # Setting the environment variable to store pretrained model
-    main_dir = 'C:/Users/m294666/Documents/'
-    # main_dir = '/research/labs/ophthalmology/iezzi/m294666/'
+    # main_dir = 'C:/Users/m294666/Documents/'
+    main_dir = '/research/labs/ophthalmology/iezzi/m294666/'
     os.environ['TORCH_HOME'] = main_dir + 'base_models'
     
     # csv_file = main_dir + 'nevus_labels.csv'
