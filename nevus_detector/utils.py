@@ -22,7 +22,7 @@ def get_model(num_outputs=1, pretrained=None, layer_names_to_freeze=[]):
 #     print_trainable_layers(model)
     return model
 
-def create_train_val_test_loaders(csv_file, batch_size, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, image_size=224):
+def create_train_val_test_loaders(csv_file, batch_size, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2, image_size=224):
     """
     Create train, validation, and test data loaders based on provided ratios.
 
@@ -147,6 +147,6 @@ def plot_and_save_losses_accuracies(train_losses, val_losses, train_accuracies, 
     plt.title('Training and Validation Accuracies')
 
     # Save the plots
-    save_path = f"{save_dir}/losses_accuracies_plot.png"
-    plt.savefig(save_path)
-    print(f"Losses and accuracies plot saved at {save_path}")
+    # save_path = f"{save_dir}/losses_accuracies_plot.png"
+    plt.savefig(save_dir)
+    print(f"Losses and accuracies plot saved at {save_dir}")
