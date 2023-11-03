@@ -15,14 +15,14 @@ def parse_arguments():
         type=str,
         help="The directory for the pretrained model")
 
-    parser.add_argument('--batch_size', default=32, type=int,
+    parser.add_argument('--batch_size', default=[16,32,64],
                         help="Batch size (default: 32)")
 
-    parser.add_argument('--num_epochs', default=2, type=int,
+    parser.add_argument('--num_epochs', default=50, type=int,
                         help="Number of epochs (default: 1)")
 
-    parser.add_argument('--learning_rate', default=0.001, type=float,
-                        help="Learning rate (default: 0.01)")
+    parser.add_argument('--learning_rate', default=[0.0001,0.001,0.01,0.1],
+                        help="Learning rate (default: 0.001)")
 
     args = parser.parse_args()
     return args
