@@ -11,7 +11,8 @@
 #SBATCH --chdir /research/labs/ophthalmology/iezzi/m294666/yoga-lab/nevus_detector
 
 # Run your Python script, and capture both stdout and stderr
-python train_val.py
+# python train_val.py
+python gradcam.py
 
 # Job complete
 echo "Job completed on $(date)"
