@@ -18,7 +18,7 @@ def print_trainable_layers(model):
         if param.requires_grad:
             print(name)
             
-def get_model(num_outputs=1, pretrained=None, layer_names_to_freeze=[]):
+def get_model(num_outputs=2, pretrained=None, layer_names_to_freeze=[]):
     model = CustomResNet18(num_outputs)
     freeze_layers(model, layer_names_to_freeze)
 #     print_trainable_layers(model)
@@ -86,7 +86,7 @@ def evaluate(model, dataloader, criterion, device):
         for images, labels, paths in dataloader:
             gt_labels.extend(labels.tolist())
             images, labels = images.to(device), labels.reshape((-1,1)).to(device)
-            outputs = model(images)
+            outputs,_ = model(images)
             loss = criterion(outputs, labels)
             total_loss += loss.item()
 
