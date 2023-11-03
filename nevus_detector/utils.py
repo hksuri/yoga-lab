@@ -1,4 +1,6 @@
 import torch
+import random
+import pandas as pd
 from torch.utils.data import DataLoader, random_split
 from dataloader import CustomDataset
 from model import CustomResNet18
@@ -150,3 +152,47 @@ def plot_and_save_losses_accuracies(train_losses, val_losses, train_accuracies, 
     # save_path = f"{save_dir}/losses_accuracies_plot.png"
     plt.savefig(save_dir)
     print(f"Losses and accuracies plot saved at {save_dir}")
+
+def create_preds_plot(test_image_paths, test_predicted_labels, csv_file_path, save_dir):
+    """
+    Plot the predictions on sample test images and save the plot.
+
+    Args:
+        test_image_paths (list): List of paths of test images.
+        test_predicted_labels (list): List of predicted labels.
+        csv_file_path (str): Directory to csv file containing ground truth labels.
+        save_dir (str): Directory to save the plot.
+    """
+    # Read the CSV file and create a DataFrame
+    df = pd.read_csv(csv_file_path)
+
+    # Obtain the ground truth labels associated with test_image_paths
+    ground_truth_labels = []
+    for image_path in test_image_paths:
+        row = df[df['Image Path'] == image_path]
+        if not row.empty:
+            ground_truth_labels.append(row['Label'].values[0])
+
+    # Randomly choose 16 images
+    # random.seed(42)  # Set a seed for reproducibility
+    selected_indices = random.sample(range(len(test_image_paths)), 16)
+
+    # Create a 2x4 subplot
+    fig, axes = plt.subplots(4, 4, figsize=(12, 12))
+
+    # Loop through selected images and plot them
+    for i, index in enumerate(selected_indices):
+        image_path = test_image_paths[index]
+        predicted_label = test_predicted_labels[index]
+        ground_truth_label = ground_truth_labels[index]
+        ax = axes[i // 4, i % 4]
+        ax.axis('off')
+        ax.set_title(f'Prediction: {int(predicted_label[0])}', color='green' if predicted_label == ground_truth_label else 'red')
+        img = plt.imread(image_path)
+        ax.imshow(img)
+
+    # Save the subplot to the specified directory
+    fig.tight_layout()
+    plt.savefig(save_dir)
+    plt.close()
+    print(f'\nPreds saved to {save_dir}')
