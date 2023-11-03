@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from config import parse_arguments
 from utils import get_model, create_train_val_test_loaders, evaluate, plot_and_save_losses_accuracies, calculate_auroc, create_preds_plot
+from gradcam import plot_gradcam
 
 def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
 
@@ -46,7 +47,7 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
                     
                     images, labels = images.to(device), labels.reshape((-1,1)).to(device)
                     optimizer.zero_grad()
-                    outputs = model(images)
+                    outputs, _ = model(images)
                     # print(f'labels: {labels.size()}, preds: {outputs.size()}')
                     loss = criterion(outputs, labels)
                     loss.backward()
@@ -90,7 +91,7 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
     auroc = calculate_auroc(test_gt_labels, test_predicted_labels)
     print(f"\nTest AUROC: {auroc:.4f} - Best Batch Size: {best_batch_size}, Best Learning Rate: {best_learning_rate}")
 
-    return best_model, best_train_losses, best_train_accuracies, best_val_losses, best_val_accuracies, test_image_paths, test_predicted_labels
+    return test_loader, best_model, best_train_losses, best_train_accuracies, best_val_losses, best_val_accuracies, test_image_paths, test_predicted_labels
 
 def main():
 
@@ -106,7 +107,7 @@ def main():
     best_model_path = args.main_dir + 'nevus_detector_best_models'
 
     # Run experiment
-    best_model_weights, train_losses, train_accuracies, val_losses, val_accuracies, test_image_paths, test_predicted_labels = train(args, csv_file, args.num_epochs, args.learning_rate, args.batch_size)
+    test_loader, best_model_weights, train_losses, train_accuracies, val_losses, val_accuracies, test_image_paths, test_predicted_labels = train(args, csv_file, args.num_epochs, args.learning_rate, args.batch_size)
 
     # Save the trained model weights to a file
     now = datetime.datetime.now()
@@ -123,6 +124,11 @@ def main():
     preds_str = now.strftime('nevus_detector_preds/preds_%m_%d_%y_%H_%M.png')
     preds_directory = args.main_dir + preds_str
     create_preds_plot(test_image_paths, test_predicted_labels, csv_file, preds_directory)
+
+    # Plot and save Grad-CAM output
+    gradcam_str = now.strftime('nevus_detector_gradcam/gradcam_%m_%d_%y_%H_%M.png')
+    gradcam_directory = args.main_dir + gradcam_str
+    plot_gradcam(best_model_path, test_loader, gradcam_directory)
 
 if __name__ == "__main__":
     main()
