@@ -21,7 +21,7 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
         for batch_size in batch_sizes:
 
             # Create dataloaders
-            train_loader, val_loader, test_loader = create_train_val_test_loaders(csv_file, batch_size)
+            train_loader, val_loader, test_loader, test_loader_gradcam = create_train_val_test_loaders(csv_file, batch_size)
 
             # Obtain model
             model = get_model(pretrained = args.pretrained_dir)
@@ -47,14 +47,18 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
                     
                     images, labels = images.to(device), labels.reshape((-1,1)).to(device)
                     optimizer.zero_grad()
-                    outputs, _ = model(images)
+                    outputs = model(images)
+                    targets = torch.stack((labels, 1 - labels), dim=1).squeeze(2)
+
+                    # print(f'target size: {targets.size()}, output size: {outputs.size()}')
                     # print(f'labels: {labels.size()}, preds: {outputs.size()}')
-                    loss = criterion(outputs, labels)
+
+                    loss = criterion(outputs, targets)
                     loss.backward()
                     optimizer.step()
                     total_loss += loss.item()
 
-                    predicted = (torch.sigmoid(outputs) > 0.5).float()
+                    predicted = torch.argmax(torch.sigmoid(outputs).float(),dim=1)
                     correct_train += (predicted == labels).sum().item()
                     total_train += labels.size(0)
 
@@ -91,7 +95,7 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
     auroc = calculate_auroc(test_gt_labels, test_predicted_labels)
     print(f"\nTest AUROC: {auroc:.4f} - Best Batch Size: {best_batch_size}, Best Learning Rate: {best_learning_rate}")
 
-    return test_loader, best_model, best_train_losses, best_train_accuracies, best_val_losses, best_val_accuracies, test_image_paths, test_predicted_labels
+    return test_loader_gradcam, best_model, best_train_losses, best_train_accuracies, best_val_losses, best_val_accuracies, test_image_paths, test_predicted_labels
 
 def main():
 
@@ -107,10 +111,12 @@ def main():
     best_model_path = args.main_dir + 'nevus_detector_best_models'
 
     # Run experiment
-    test_loader, best_model_weights, train_losses, train_accuracies, val_losses, val_accuracies, test_image_paths, test_predicted_labels = train(args, csv_file, args.num_epochs, args.learning_rate, args.batch_size)
+    test_loader_gradcam, best_model_weights, train_losses, train_accuracies, val_losses, val_accuracies, test_image_paths, test_predicted_labels = train(args, csv_file, args.num_epochs, args.learning_rate, args.batch_size)
 
-    # Save the trained model weights to a file
+    # Get current date and time
     now = datetime.datetime.now()
+    
+    # Save the trained model weights to a file
     date_time_str = now.strftime("/best_model_weights_%m_%d_%y_%H_%M.pth")
     best_model_path += date_time_str
     torch.save(best_model_weights, best_model_path)
@@ -128,7 +134,7 @@ def main():
     # Plot and save Grad-CAM output
     gradcam_str = now.strftime('nevus_detector_gradcam/gradcam_%m_%d_%y_%H_%M.png')
     gradcam_directory = args.main_dir + gradcam_str
-    plot_gradcam(best_model_path, test_loader, gradcam_directory)
+    plot_gradcam(best_model_path, test_loader_gradcam, gradcam_directory)
 
 if __name__ == "__main__":
     main()
