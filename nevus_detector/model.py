@@ -6,6 +6,25 @@ class CustomResNet18(nn.Module):
     def __init__(self, num_outputs=2, pretrained=None):
         super(CustomResNet18, self).__init__()
 
+        # Load the pre-trained ResNet-18 model if a path is provided, or create a new one
+        if pretrained is not None:
+            self.model = models.resnet18()
+            self.model.load_state_dict(torch.load(pretrained))
+        else:
+            self.model = models.resnet18(weights='IMAGENET1K_V1')
+
+        # Modify the final FC layer
+        in_features = self.model.fc.in_features
+        self.model.fc = nn.Linear(in_features, num_outputs)
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class CustomResNet18_GradCAM(nn.Module):
+    def __init__(self, num_outputs=2, pretrained=None):
+        super(CustomResNet18_GradCAM, self).__init__()
+
         self.gradients = None
         self.tensorhook = []
         self.layerhook = []
@@ -26,10 +45,6 @@ class CustomResNet18(nn.Module):
         
         for p in self.model.parameters():
             p.requires_grad = True
-
-        # Modify the final FC layer
-        in_features = self.model.fc.in_features
-        self.model.fc = nn.Linear(in_features, num_outputs)
         
     def activations_hook(self,grad):
         self.gradients = grad
