@@ -4,20 +4,20 @@ import torch
 import torch.nn as nn
 from skimage.io import imread
 from skimage.transform import resize
-from utils import get_model
+from utils import get_model_gradcam
 
 def plot_gradcam(best_model_weights, test_loader, save_dir, threshold=0.5):
 
     # Load model
-    model = get_model(pretrained=best_model_weights)
+    model = get_model_gradcam(pretrained=best_model_weights)
     
     # Create a 4x4 subplot
     fig, axes = plt.subplots(4, 4, figsize=(12, 12))
 
     # Loop through selected images and plot them
-    for i,(img,label,_) in enumerate(test_loader):
+    for itr,(img,label,_) in enumerate(test_loader):
 
-        if i == 16:
+        if itr == 16:
             break
 
         out, acts = model(img)
@@ -55,7 +55,7 @@ def plot_gradcam(best_model_weights, test_loader, save_dir, threshold=0.5):
         combined = combined[:, :, :3]
 
         # Display the result
-        ax = axes[i // 4, i % 4]
+        ax = axes[itr // 4, itr % 4]
         ax.axis('off')
 
         ax.set_title(f'Prediction: {int(predicted_label[0])}', color='green' if predicted_label == label else 'red')
@@ -66,6 +66,4 @@ def plot_gradcam(best_model_weights, test_loader, save_dir, threshold=0.5):
     fig.tight_layout()
     plt.savefig(save_dir)
     plt.close()
-    print(f'\nPreds saved to {save_dir}')
-
-    pass
+    print(f'\nGrad-CAM preds saved to {save_dir}')
