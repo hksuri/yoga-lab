@@ -3,7 +3,7 @@ import random
 import pandas as pd
 from torch.utils.data import DataLoader, random_split
 from dataloader import CustomDataset
-from model import CustomResNet18
+from model import CustomResNet18, CustomResNet18_GradCAM
 from sklearn.metrics import roc_auc_score
 import matplotlib.pyplot as plt
 
@@ -24,6 +24,47 @@ def get_model(num_outputs=2, pretrained=None, layer_names_to_freeze=[]):
 #     print_trainable_layers(model)
     return model
 
+def get_model_gradcam(num_outputs=2, pretrained=None, layer_names_to_freeze=[]):
+    model = CustomResNet18_GradCAM(num_outputs)
+    freeze_layers(model, layer_names_to_freeze)
+#     print_trainable_layers(model)
+    return model
+
+# def create_train_val_test_loaders(csv_file, batch_size, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2, image_size=224):
+#     """
+#     Create train, validation, and test data loaders based on provided ratios.
+
+#     Args:
+#         csv_file (str): Path to the csv file.
+#         batch_size (int): Number of samples in each batch.
+#         train_ratio (float): Ratio of training data.
+#         val_ratio (float): Ratio of validation data.
+#         test_ratio (float): Ratio of test data.
+#         image_size (int): Size to which the image is resized.
+
+#     Returns:
+#         train_loader, val_loader, test_loader: DataLoader instances for train, validation, and test datasets.
+#     """
+#     dataset = CustomDataset(csv_file, image_size=image_size)
+    
+#     # Calculate data split sizes
+#     total_samples = len(dataset)
+#     train_size = int(train_ratio * total_samples)
+#     val_size = int(val_ratio * total_samples)
+#     test_size = total_samples - train_size - val_size
+    
+#     # Split the dataset into train, validation, and test sets
+#     train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
+    
+#     # Create DataLoader instances for train, validation, and test datasets
+#     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+#     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+#     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+#     return train_loader, val_loader, test_loader
+
+import os
+
 def create_train_val_test_loaders(csv_file, batch_size, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2, image_size=224):
     """
     Create train, validation, and test data loaders based on provided ratios.
@@ -41,21 +82,53 @@ def create_train_val_test_loaders(csv_file, batch_size, train_ratio=0.6, val_rat
     """
     dataset = CustomDataset(csv_file, image_size=image_size)
     
-    # Calculate data split sizes
-    total_samples = len(dataset)
-    train_size = int(train_ratio * total_samples)
-    val_size = int(val_ratio * total_samples)
-    test_size = total_samples - train_size - val_size
+    # Create a dictionary to hold images for each patient
+    patient_images = {}
     
-    # Split the dataset into train, validation, and test sets
-    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
+    # Iterate through the dataset and group images by patient MRN
+    for idx, (image, label, image_path) in enumerate(dataset):
+        # Extract the patient MRN from the image path
+        patient_mrn = os.path.basename(os.path.dirname(image_path))
+        if patient_mrn not in patient_images:
+            patient_images[patient_mrn] = []
+        patient_images[patient_mrn].append((image, label, image_path))
+    
+    # Shuffle the patient MRNs to distribute them randomly
+    patient_mrns = list(patient_images.keys())
+    random.shuffle(patient_mrns)
+    
+    # Calculate data split sizes based on patient count
+    total_patients = len(patient_mrns)
+    train_size = int(train_ratio * total_patients)
+    val_size = int(val_ratio * total_patients)
+    test_size = total_patients - train_size - val_size
+    
+    # Split the patient MRNs into train, validation, and test sets
+    train_mrns = patient_mrns[:train_size]
+    val_mrns = patient_mrns[train_size:train_size + val_size]
+    test_mrns = patient_mrns[train_size + val_size:]
     
     # Create DataLoader instances for train, validation, and test datasets
+    train_dataset = [(image, label, image_path) for mrn in train_mrns for image, label, image_path in patient_images[mrn]]
+    val_dataset = [(image, label, image_path) for mrn in val_mrns for image, label, image_path in patient_images[mrn]]
+    test_dataset = [(image, label, image_path) for mrn in test_mrns for image, label, image_path in patient_images[mrn]]
+    
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    test_loader_gradcam = DataLoader(test_dataset, batch_size=1, shuffle=False)
     
-    return train_loader, val_loader, test_loader
+    # Calculate the total size of images in each dataloader
+    total_train_images = len(train_dataset)
+    total_val_images = len(val_dataset)
+    total_test_images = len(test_dataset)
+    
+    print(f"Total images in train loader: {total_train_images}")
+    print(f"Total images in validation loader: {total_val_images}")
+    print(f"Total images in test loader: {total_test_images}")
+    
+    return train_loader, val_loader, test_loader, test_loader_gradcam
+
 
 def evaluate(model, dataloader, criterion, device):
     """
@@ -86,11 +159,13 @@ def evaluate(model, dataloader, criterion, device):
         for images, labels, paths in dataloader:
             gt_labels.extend(labels.tolist())
             images, labels = images.to(device), labels.reshape((-1,1)).to(device)
-            outputs,_ = model(images)
-            loss = criterion(outputs, labels)
+            outputs = model(images)
+            targets = torch.stack((labels, 1 - labels), dim=1).squeeze(2)
+
+            loss = criterion(outputs, targets)
             total_loss += loss.item()
 
-            predicted = (torch.sigmoid(outputs) > 0.5).float()
+            predicted = torch.argmax((torch.sigmoid(outputs) > 0.5).float(), dim=1)
             correct += (predicted == labels).sum().item()
             total += labels.size(0)
             predicted_labels.extend(predicted.cpu().numpy())
@@ -187,7 +262,7 @@ def create_preds_plot(test_image_paths, test_predicted_labels, csv_file_path, sa
         ground_truth_label = ground_truth_labels[index]
         ax = axes[i // 4, i % 4]
         ax.axis('off')
-        ax.set_title(f'Prediction: {int(predicted_label[0])}', color='green' if predicted_label == ground_truth_label else 'red')
+        ax.set_title(f'Prediction: {int(predicted_label)}', color='green' if predicted_label == ground_truth_label else 'red')
         img = plt.imread(image_path)
         ax.imshow(img)
 
