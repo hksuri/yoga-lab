@@ -10,8 +10,10 @@ class CustomResNet18(nn.Module):
         if pretrained is not None:
             self.model = models.resnet18()
             self.model.load_state_dict(torch.load(pretrained))
+            print(f'\nWeights loaded from {pretrained}.\n')
         else:
             self.model = models.resnet18(weights='IMAGENET1K_V1')
+            print('\nInitialized model pretrained on ImageNet.\n')
 
         # Modify the final FC layer
         in_features = self.model.fc.in_features
