@@ -15,7 +15,7 @@ def plot_gradcam(best_model_weights, test_loader, save_dir, threshold=0.5):
     fig, axes = plt.subplots(4, 4, figsize=(12, 12))
 
     # Loop through selected images and plot them
-    for itr,(img,label,_) in enumerate(test_loader):
+    for itr,(img,label,img_path) in enumerate(test_loader):
 
         if itr == 16:
             break
@@ -51,15 +51,18 @@ def plot_gradcam(best_model_weights, test_loader, save_dir, threshold=0.5):
         result_heatmap[~mask] = 0
 
         # Overlay the adjusted heatmap on the image
-        combined = img[0].numpy().transpose((1,2,0)).copy()
-        combined = combined[:, :, :3]
+        # combined = img[0].numpy().transpose((1,2,0)).copy()
+        # combined = combined[:, :, :3]
 
         # Display the result
         ax = axes[itr // 4, itr % 4]
         ax.axis('off')
 
-        ax.set_title(f'Prediction: {int(predicted_label[0])}', color='green' if predicted_label == label else 'red')
-        ax.imshow(combined)
+        ax.set_title(f'Prediction: {int(predicted_label)}', color='green' if predicted_label == label else 'red')
+        # ax.imshow(combined)
+        # print(f'gradcam image path: {img_path[0]}')
+        image_to_display = plt.imread(img_path[0])
+        ax.imshow(image_to_display)
         ax.imshow(result_heatmap, cmap='jet', alpha=0.2*alpha)  # Use alpha to control the transparency
 
     # Save the subplot to the specified directory
