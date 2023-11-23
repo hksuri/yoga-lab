@@ -18,7 +18,7 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
     best_batch_size = 0
     best_learning_rate = 0.
 
-    batch_size = 64
+    batch_size = 32
 
     # Create dataloaders
     train_loader, val_loader, test_loader, test_loader_gradcam = create_train_val_test_loaders(csv_file, batch_size)
@@ -27,8 +27,8 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
         for batch_size in batch_sizes:
 
             # Obtain model
-            # model = get_model(pretrained = args.pretrained_dir)
-            model = get_model()
+            model = get_model(pretrained = args.pretrained_dir)
+            # model = get_model()
 
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model.to(device)
@@ -37,7 +37,7 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
             criterion = nn.CrossEntropyLoss()
             # optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             optimizer = optim.Adam(model.parameters(), weight_decay = 1e-2)
-            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-7, max_lr=1e-3, cycle_momentum=False)
+            scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-7, max_lr=1e-5, cycle_momentum=False)
 
             best_model_found = 0
 
@@ -46,9 +46,9 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
             for epoch in range(num_epochs):
                 
                 model.train()
-                total_loss = 0
-                correct_train = 0
-                total_train = 0
+                total_loss = 0.
+                correct_train = 0.
+                total_train = 0.
 
                 for images, labels, _ in train_loader:
                     
@@ -71,10 +71,10 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
 
                     # predicted = torch.argmax(torch.sigmoid(outputs).float(),dim=1)
                     _, predicted = torch.max(outputs.data, 1)
-                    correct_train += (predicted == labels.view(-1)).sum().item()
+                    correct_train += (predicted == labels).sum().item()
                     total_train += labels.size(0)
 
-                train_loss = total_loss / len(train_loader)
+                train_loss = total_loss / total_train
                 train_accuracy = correct_train / total_train
 
                 # Validation
@@ -119,8 +119,9 @@ def main():
     
     # Define directories
     # csv_file = main_dir + 'nevus_labels.csv'
-    # csv_file = args.main_dir + 'nevus_labels_verified_clear_images_mforge.csv'
-    csv_file = args.main_dir + 'diaret_labels_final_balanced_mforge.csv'
+    csv_file = args.main_dir + 'nevus_labels_verified_clear_images_mforge.csv'
+    # csv_file = args.main_dir + 'diaret_labels_final_balanced_mforge.csv'
+    # csv_file = args.main_dir + 'diaret_labels_v2_mforge.csv'
     best_model_path = args.main_dir + 'nevus_detector_best_models'
 
     # Run experiment
