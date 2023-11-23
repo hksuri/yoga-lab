@@ -54,7 +54,7 @@ def transform(image, image_size=224, sigmaX=8):
     # enhanced_g = clahe.apply(g)
     # image = cv2.merge((r, enhanced_g, b))
 
-    # Sharp unmasking
+    # Unharp Masking
     image=cv2.addWeighted ( image, 4, cv2.GaussianBlur( image , (0,0) , sigmaX) , -4, 128)
 
     # Convert the NumPy array back to a PIL image
