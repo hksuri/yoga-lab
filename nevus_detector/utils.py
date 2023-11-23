@@ -21,7 +21,7 @@ def print_trainable_layers(model):
             
 def get_model(num_outputs=2, pretrained=None, layer_names_to_freeze=[]):
     model = CustomResNet18(num_outputs)
-    freeze_layers(model, layer_names_to_freeze)
+    # freeze_layers(model, layer_names_to_freeze)
 #     print_trainable_layers(model)
     return model
 
@@ -61,7 +61,7 @@ def create_train_val_test_loaders(csv_file, batch_size, train_ratio=0.6, val_rat
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    test_loader_gradcam = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    test_loader_gradcam = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
     print(f"Total images in train loader: {len(train_dataset)}")
     print(f"Total images in validation loader: {len(val_dataset)}")
@@ -152,7 +152,7 @@ def evaluate(model, dataloader, criterion, device):
         image_paths: List of file paths for the data.
     """
     model.eval()
-    total_loss = 0
+    total_loss = 0.
     correct = 0
     total = 0
     gt_labels = []
@@ -172,14 +172,14 @@ def evaluate(model, dataloader, criterion, device):
 
             # predicted = torch.argmax((torch.sigmoid(outputs) > 0.5).float(), dim=1)
             _, predicted = torch.max(outputs.data, 1)
-            correct += (predicted == labels.view(-1)).sum().item()
+            correct += (predicted == labels).sum().item()
             total += labels.size(0)
             predicted_labels.extend(predicted.cpu().numpy())
             image_paths.extend(paths)
 
             # print(f'predicted labels eval: {predicted}')
 
-    loss = total_loss / len(dataloader)
+    loss = total_loss / total
     accuracy = correct / total
 
     return loss, accuracy, gt_labels, predicted_labels, image_paths
@@ -271,7 +271,6 @@ def create_preds_plot(test_image_paths, test_predicted_labels, csv_file_path, sa
         ax = axes[i // 4, i % 4]
         ax.axis('off')
         ax.set_title(f'Prediction: {int(predicted_label)}', color='green' if predicted_label == ground_truth_label else 'red')
-        print(f'pred image path: {image_path}')
         img = plt.imread(image_path)
         ax.imshow(img)
 
