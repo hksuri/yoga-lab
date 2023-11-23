@@ -11,7 +11,7 @@ def parse_arguments():
 
     parser.add_argument(
         '--pretrained_dir',
-        default='/research/labs/ophthalmology/iezzi/m294666/pretrained_models/resnet_pretrained_weights_distorted.pth',
+        default='/research/labs/ophthalmology/iezzi/m294666/nevus_detector_best_models/diaret_best_weights_nov_23.pth',
         type=str,
         help="The directory for the pretrained model")
 
