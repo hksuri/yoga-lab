@@ -58,7 +58,9 @@ def plot_gradcam(best_model_weights, test_loader, save_dir, threshold=0.5):
         ax = axes[itr // 4, itr % 4]
         ax.axis('off')
 
-        ax.set_title(f'Prediction: {int(predicted_label)}', color='green' if predicted_label == label else 'red')
+        print(f'gradcam predicted label: {predicted_label}')
+
+        ax.set_title(f'Prediction: {int(predicted_label[0])}', color='green' if predicted_label[0] == label else 'red')
         # ax.imshow(combined)
         # print(f'gradcam image path: {img_path[0]}')
         image_to_display = plt.imread(img_path[0])
