@@ -27,8 +27,8 @@ def train(args, csv_file, num_epochs, learning_rates, batch_sizes):
         for batch_size in batch_sizes:
 
             # Obtain model
-            model = get_model(pretrained = args.pretrained_dir)
-            # model = get_model()
+            # model = get_model(pretrained = args.pretrained_dir)
+            model = get_model()
 
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             model.to(device)
@@ -119,9 +119,9 @@ def main():
     
     # Define directories
     # csv_file = main_dir + 'nevus_labels.csv'
-    csv_file = args.main_dir + 'nevus_labels_verified_clear_images_mforge.csv'
+    # csv_file = args.main_dir + 'nevus_labels_verified_clear_images_mforge.csv'
     # csv_file = args.main_dir + 'diaret_labels_final_balanced_mforge.csv'
-    # csv_file = args.main_dir + 'diaret_labels_v2_mforge.csv'
+    csv_file = args.main_dir + 'diaret_labels_v2_mforge.csv'
     best_model_path = args.main_dir + 'nevus_detector_best_models'
 
     # Run experiment
@@ -146,9 +146,9 @@ def main():
     create_preds_plot(test_image_paths, test_predicted_labels, csv_file, preds_directory)
 
     # Plot and save Grad-CAM output
-    gradcam_str = now.strftime('nevus_detector_gradcam/gradcam_%m_%d_%y_%H_%M.png')
-    gradcam_directory = args.main_dir + gradcam_str
-    plot_gradcam(best_model_path, test_loader_gradcam, gradcam_directory)
+    # gradcam_str = now.strftime('nevus_detector_gradcam/gradcam_%m_%d_%y_%H_%M.png')
+    # gradcam_directory = args.main_dir + gradcam_str
+    # plot_gradcam(best_model_path, test_loader_gradcam, gradcam_directory)
 
 if __name__ == "__main__":
     main()
