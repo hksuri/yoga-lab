@@ -2,17 +2,17 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 
-class CustomResNet18(nn.Module):
+class CustomResNet(nn.Module):
     def __init__(self, num_outputs=2, pretrained=None):
-        super(CustomResNet18, self).__init__()
+        super(CustomResNet, self).__init__()
 
-        # Load the pre-trained ResNet-18 model if a path is provided, or create a new one
+        # Load the pre-trained ResNet model if a path is provided, or create a new one
         if pretrained is not None:
             self.model = models.resnet18()
             self.model.load_state_dict(torch.load(pretrained))
             print(f'\nWeights loaded from {pretrained}.\n')
         else:
-            self.model = models.resnet18(weights='IMAGENET1K_V1')
+            self.model = models.resnet50(weights='IMAGENET1K_V1')
             print('\nInitialized model pretrained on ImageNet.\n')
 
         # Modify the final FC layer
