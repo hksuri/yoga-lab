@@ -4,7 +4,7 @@ import random
 import pandas as pd
 from torch.utils.data import DataLoader, random_split
 from dataloader import CustomDataset
-from model import CustomResNet18, CustomResNet18_GradCAM
+from model import CustomResNet, CustomResNet18_GradCAM
 from sklearn.metrics import roc_auc_score
 import matplotlib.pyplot as plt
 
@@ -20,7 +20,7 @@ def print_trainable_layers(model):
             print(name)
             
 def get_model(num_outputs=2, pretrained=None, layer_names_to_freeze=[]):
-    model = CustomResNet18(num_outputs)
+    model = CustomResNet(num_outputs)
     # freeze_layers(model, layer_names_to_freeze)
 #     print_trainable_layers(model)
     return model
