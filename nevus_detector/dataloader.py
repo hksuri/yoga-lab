@@ -55,7 +55,7 @@ def transform(image, image_size=224, sigmaX=8):
     # image = cv2.merge((r, enhanced_g, b))
 
     # Unharp Masking
-    image=cv2.addWeighted ( image, 4, cv2.GaussianBlur( image , (0,0) , sigmaX) , -4, 128)
+    # image=cv2.addWeighted ( image, 4, cv2.GaussianBlur( image , (0,0) , sigmaX) , -4, 128)
 
     # Convert the NumPy array back to a PIL image
     image = Image.fromarray(image)
