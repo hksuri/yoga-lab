@@ -35,7 +35,7 @@ from engine_finetune import train_one_epoch, evaluate
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE fine-tuning for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=16, type=int,
+    parser.add_argument('--batch_size', default=4, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
     parser.add_argument('--epochs', default=50, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
@@ -59,9 +59,9 @@ def get_args_parser():
 
     parser.add_argument('--lr', type=float, default=None, metavar='LR',
                         help='learning rate (absolute lr)')
-    parser.add_argument('--blr', type=float, default=1e-3, metavar='LR',
+    parser.add_argument('--blr', type=float, default=5e-3, metavar='LR',
                         help='base learning rate: absolute_lr = base_lr * total_batch_size / 256')
-    parser.add_argument('--layer_decay', type=float, default=0.75,
+    parser.add_argument('--layer_decay', type=float, default=0.65,
                         help='layer-wise lr decay from ELECTRA/BEiT')
 
     parser.add_argument('--min_lr', type=float, default=1e-6, metavar='LR',
@@ -103,19 +103,20 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='',type=str,
+    parser.add_argument('--finetune', default='/mnt/ssd_4tb_0/huzaifa/retfound_pretrained_model/RETFound_cfp_weights.pth',type=str,
                         help='finetune from checkpoint')
-    parser.add_argument('--task', default='',type=str,
+    parser.add_argument('--task', default='./dummy_test',type=str,
                         help='finetune from checkpoint')
     parser.add_argument('--global_pool', action='store_true')
-    # parser.set_defaults(global_pool=True)
-    parser.set_defaults(global_pool=False)
+    parser.set_defaults(global_pool=True)
+    # parser.set_defaults(global_pool=False)
     parser.add_argument('--cls_token', action='store_false', dest='global_pool',
                         help='Use class token instead of global pool for classification')
 
     # Dataset parameters
     # parser.add_argument('--data_path', default='/home/jupyter/Mor_DR_data/data/data/IDRID/Disease_Grading/', type=str,
-    parser.add_argument('--data_path', default='/research/labs/ophthalmology/iezzi/m294666/data_dia5_retfound', type=str,
+    # parser.add_argument('--data_path', default='/research/labs/ophthalmology/iezzi/m294666/data_dia5_retfound', type=str,
+    parser.add_argument('--data_path', default='/mnt/ssd_4tb_0/huzaifa/retfound_dummy', type=str,
                         help='dataset path')
     parser.add_argument('--nb_classes', default=2, type=int,
                         help='number of the classification types')
