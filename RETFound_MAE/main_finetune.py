@@ -35,9 +35,9 @@ from engine_finetune import train_one_epoch, evaluate
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE fine-tuning for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=4, type=int,
+    parser.add_argument('--batch_size', default=16, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
-    parser.add_argument('--epochs', default=50, type=int)
+    parser.add_argument('--epochs', default=100, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 
@@ -103,10 +103,12 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='/mnt/ssd_4tb_0/huzaifa/retfound_pretrained_model/RETFound_cfp_weights.pth',type=str,
+    parser.add_argument('--finetune', default='/research/labs/ophthalmology/iezzi/m294666/retfound_model/RETFound_cfp_weights.pth',type=str,
                         help='finetune from checkpoint')
-    parser.add_argument('--task', default='./dummy_test',type=str,
+    parser.add_argument('--task', default='/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5',type=str,
                         help='finetune from checkpoint')
+    parser.add_argument('--log_task', default='/dia5/',type=str,
+                    help='finetune from checkpoint')
     parser.add_argument('--global_pool', action='store_true')
     parser.set_defaults(global_pool=True)
     # parser.set_defaults(global_pool=False)
@@ -115,15 +117,15 @@ def get_args_parser():
 
     # Dataset parameters
     # parser.add_argument('--data_path', default='/home/jupyter/Mor_DR_data/data/data/IDRID/Disease_Grading/', type=str,
-    # parser.add_argument('--data_path', default='/research/labs/ophthalmology/iezzi/m294666/data_dia5_retfound', type=str,
-    parser.add_argument('--data_path', default='/mnt/ssd_4tb_0/huzaifa/retfound_dummy', type=str,
+    parser.add_argument('--data_path', default='/research/labs/ophthalmology/iezzi/m294666/data_dia5_retfound', type=str,
+    # parser.add_argument('--data_path', default='/mnt/ssd_4tb_0/huzaifa/retfound_dummy', type=str,
                         help='dataset path')
     parser.add_argument('--nb_classes', default=2, type=int,
                         help='number of the classification types')
 
-    parser.add_argument('--output_dir', default='./output_dir',
+    parser.add_argument('--output_dir', default='/research/labs/ophthalmology/iezzi/m294666/retfound_output',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default='./output_dir',
+    parser.add_argument('--log_dir', default='/research/labs/ophthalmology/iezzi/m294666/retfound_output',
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
@@ -137,7 +139,7 @@ def get_args_parser():
                         help='Perform evaluation only')
     parser.add_argument('--dist_eval', action='store_true', default=False,
                         help='Enabling distributed evaluation (recommended during training for faster monitor')
-    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--num_workers', default=4, type=int)
     parser.add_argument('--pin_mem', action='store_true',
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no_pin_mem', action='store_false', dest='pin_mem')
@@ -207,7 +209,7 @@ def main(args):
     if global_rank == 0 and args.log_dir is not None and not args.eval:
     # if args.log_dir is not None and not args.eval:
         os.makedirs(args.log_dir, exist_ok=True)
-        log_writer = SummaryWriter(log_dir=args.log_dir+args.task)
+        log_writer = SummaryWriter(log_dir=args.log_dir+args.log_task)
     else:
         log_writer = None
 
