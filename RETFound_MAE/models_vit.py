@@ -38,8 +38,11 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             x = blk(x)
 
         if self.global_pool:
+            # print(f'x before: {x.size()}')
             x = x[:, 1:, :].mean(dim=1)  # global pool without cls token
+            # print(f'x after: {x.size()}')
             outcome = self.fc_norm(x)
+            # print(f'outcome: {outcome.size()}')
         else:
             x = self.norm(x)
             outcome = x[:, 0]
