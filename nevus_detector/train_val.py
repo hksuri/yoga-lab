@@ -121,7 +121,8 @@ def main():
     # csv_file = main_dir + 'nevus_labels.csv'
     # csv_file = args.main_dir + 'nevus_labels_verified_clear_images_mforge.csv'
     # csv_file = args.main_dir + 'diaret_labels_final_balanced_mforge.csv'
-    csv_file = args.main_dir + 'diaret_labels_v2_mforge.csv'
+    # csv_file = args.main_dir + 'diaret_labels_v2_mforge.csv'
+    csv_file = args.main_dir + 'nevus_data_500_for_resnet.csv'
     best_model_path = args.main_dir + 'nevus_detector_best_models'
 
     # Run experiment
