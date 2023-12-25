@@ -1,10 +1,30 @@
 import torch
+import cv2
 import pandas as pd
 from torchvision import transforms
 from torch.utils.data import Dataset
 from PIL import Image
+import numpy as np
 
-def transform(image, image_size=224):
+def crop_image(img,tol=7):
+    if img.ndim ==2:
+        mask = img>tol
+        return img[np.ix_(mask.any(1),mask.any(0))]
+    elif img.ndim==3:
+        gray_img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        mask = gray_img>tol
+        
+        check_shape = img[:,:,0][np.ix_(mask.any(1),mask.any(0))].shape[0]
+        if (check_shape == 0): # image is too dark so that we crop out everything,
+            return img # return original image
+        else:
+            img1=img[:,:,0][np.ix_(mask.any(1),mask.any(0))]
+            img2=img[:,:,1][np.ix_(mask.any(1),mask.any(0))]
+            img3=img[:,:,2][np.ix_(mask.any(1),mask.any(0))]
+            img = np.stack([img1,img2,img3],axis=-1)
+        return img
+
+def transform(image, image_size=224, sigmaX=8):
     """
     Preprocess and transform the input image.
     
@@ -15,9 +35,38 @@ def transform(image, image_size=224):
     Returns:
         torch.Tensor: Transformed image tensor.
     """
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
+    # Circular Crop
+    image = crop_image(image)
+
+    # Resize
+    image = cv2.resize(image, (image_size, image_size))
+    
+    # Brightness / Contrast Enhancement
+    # brightness_factor = 2.0
+    # contrast_factor = 1.5 
+    # image = cv2.convertScaleAbs(image, alpha=contrast_factor, beta=brightness_factor)
+    
+    # CLAHE
+    # r, g, b = cv2.split(image)
+    # clahe = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(6, 6))
+    # enhanced_g = clahe.apply(g)
+    # image = cv2.merge((r, enhanced_g, b))
+
+    # Unharp Masking
+    # image=cv2.addWeighted ( image, 4, cv2.GaussianBlur( image , (0,0) , sigmaX) , -4, 128)
+
+    # Convert the NumPy array back to a PIL image
+    image = Image.fromarray(image)
+
+    # Augmentations
     preprocess = transforms.Compose([
-        transforms.Resize((image_size, image_size)),
-        transforms.ToTensor(),
+        # transforms.Resize((image_size, image_size)),
+        transforms.RandomRotation((-360, 360)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.ToTensor()
     ])
     
     return preprocess(image)
@@ -42,7 +91,7 @@ class CustomDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path, label = self.data.iloc[idx]
-        image = Image.open(img_path)  # Load image using the file path
+        image = cv2.imread(img_path)  # Load image using the file path
         image = transform(image, self.image_size)
         label = torch.tensor(label, dtype=torch.float32)
 

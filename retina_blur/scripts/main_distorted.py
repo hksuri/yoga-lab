@@ -26,8 +26,8 @@ from torch.utils.data import DataLoader
 
 from utils import *
 from config import *
-from scripts.train import run_train
-from scripts.test import run_test
+from train import run_train
+from test import run_test
 from dataloader import EyeData
 
 def main():

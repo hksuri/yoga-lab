@@ -11,17 +11,17 @@ def parse_arguments():
 
     parser.add_argument(
         '--pretrained_dir',
-        default='/research/labs/ophthalmology/iezzi/m294666/pretrained_models/resnet_pretrained_weights_distorted.pth',
+        default='/research/labs/ophthalmology/iezzi/m294666/nevus_detector_best_models/diaret_best_weights_nov_23.pth',
         type=str,
         help="The directory for the pretrained model")
 
-    parser.add_argument('--batch_size', default=[16,32,64],
+    parser.add_argument('--batch_size', default=[64],
                         help="Batch size (default: 32)")
 
-    parser.add_argument('--num_epochs', default=50, type=int,
+    parser.add_argument('--num_epochs', default=100, type=int,
                         help="Number of epochs (default: 1)")
 
-    parser.add_argument('--learning_rate', default=[0.0001,0.001,0.01,0.1],
+    parser.add_argument('--learning_rate', default=[0.001],
                         help="Learning rate (default: 0.001)")
 
     args = parser.parse_args()
