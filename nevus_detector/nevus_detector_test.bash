@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=nevus_resnet50_huzaifa
+#SBATCH --job-name=nevus_resnet101_huzaifa
 #SBATCH --partition=gpu  # Specify the GPU partition
 #SBATCH --gres=gpu:1     # Request 1 GPU
 #SBATCH --time=24:00:00  # Maximum runtime (adjust as needed)
