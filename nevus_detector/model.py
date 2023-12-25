@@ -12,7 +12,8 @@ class CustomResNet(nn.Module):
             self.model.load_state_dict(torch.load(pretrained))
             print(f'\nWeights loaded from {pretrained}.\n')
         else:
-            self.model = models.resnet50(weights='IMAGENET1K_V1')
+            # self.model = models.resnet50(weights='IMAGENET1K_V1')
+            self.model = models.resnet101(weights='IMAGENET1K_V2')
             print('\nInitialized model pretrained on ImageNet.\n')
 
         # Modify the final FC layer
