@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=retfound_timm_0.3.2_huzaifa
+#SBATCH --job-name=retfound_huzaifa
 #SBATCH --partition=gpu  # Specify the GPU partition
 #SBATCH --gres=gpu:1     # Request 1 GPU
 #SBATCH --time=24:00:00  # Maximum runtime (adjust as needed)
@@ -11,6 +11,6 @@
 #SBATCH --chdir /research/labs/ophthalmology/iezzi/m294666/yoga-lab/RETFound_MAE
 
 # Run your Python script, and capture both stdout and stderr
-python  main_finetune.py
+python main_finetune.py
 # Job complete
 echo "Job completed on $(date)"

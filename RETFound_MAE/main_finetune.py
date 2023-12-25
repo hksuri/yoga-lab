@@ -37,7 +37,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser('MAE fine-tuning for image classification', add_help=False)
     parser.add_argument('--batch_size', default=16, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
-    parser.add_argument('--epochs', default=100, type=int)
+    parser.add_argument('--epochs', default=150, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
                         help='Accumulate gradient iterations (for increasing the effective batch size under memory constraints)')
 
@@ -105,7 +105,7 @@ def get_args_parser():
     # * Finetuning params
     parser.add_argument('--finetune', default='/research/labs/ophthalmology/iezzi/m294666/retfound_model/RETFound_cfp_weights.pth',type=str,
                         help='finetune from checkpoint')
-    parser.add_argument('--task', default='/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5',type=str,
+    parser.add_argument('--task', default='/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5/',type=str,
                         help='finetune from checkpoint')
     parser.add_argument('--log_task', default='/dia5/',type=str,
                     help='finetune from checkpoint')
