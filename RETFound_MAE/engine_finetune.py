@@ -79,7 +79,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
     if log_writer is not None:
         print('log_dir: {}'.format(log_writer.log_dir))
 
-    for data_iter_step, (samples, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+    for data_iter_step, (_, samples, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 
         # we use a per iteration (instead of per epoch) lr scheduler
         if data_iter_step % accum_iter == 0:
@@ -93,7 +93,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         with torch.cuda.amp.autocast():
             # print(f'samples size: {samples.size()}')
-            outputs = model(samples)
+            _,outputs = model(samples)
             loss = criterion(outputs, targets)
 
         loss_value = loss.item()
@@ -149,15 +149,20 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class):
         os.makedirs(task)
 
     prediction_decode_list = []
+    output_prob_list = []
     prediction_list = []
     true_label_decode_list = []
     true_label_onehot_list = []
+
+    image_paths = []
+    model_embeddings = []
     
     # switch to evaluation mode
     model.eval()
 
     for batch in metric_logger.log_every(data_loader, 10, header):
-        images = batch[0]
+        image_paths.extend(batch[0])
+        images = batch[1]
         target = batch[-1]
         images = images.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
@@ -165,7 +170,8 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class):
 
         # compute output
         with torch.cuda.amp.autocast():
-            output = model(images)
+            emb,output = model(images)
+            model_embeddings.extend(emb)
             loss = criterion(output, target)
             prediction_softmax = nn.Softmax(dim=1)(output)
             _,prediction_decode = torch.max(prediction_softmax, 1)
@@ -175,6 +181,8 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class):
             true_label_decode_list.extend(true_label_decode.cpu().detach().numpy())
             true_label_onehot_list.extend(true_label.cpu().detach().numpy())
             prediction_list.extend(prediction_softmax.cpu().detach().numpy())
+
+            output_prob_list.extend(prediction_softmax.cpu().detach().numpy())
 
         acc1,_ = accuracy(output, target, topk=(1,2))
 
@@ -205,7 +213,6 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class):
         cm = ConfusionMatrix(actual_vector=true_label_decode_list, predict_vector=prediction_decode_list)
         cm.plot(cmap=plt.cm.Blues,number_label=True,normalized=True,plot_lib="matplotlib")
         plt.savefig(task+'confusion_matrix_test.jpg',dpi=600,bbox_inches ='tight')
-        print(f'Confusion matrix saved to: )
     
-    return {k: meter.global_avg for k, meter in metric_logger.meters.items()},auc_roc
+    return true_label_onehot_list,output_prob_list,prediction_list,{k: meter.global_avg for k, meter in metric_logger.meters.items()},auc_roc
 
