@@ -178,6 +178,8 @@ def main(args):
     true_labels_list = []
     output_prob_list = []
     preds_list = []
+    embeddings_lists_main = []
+    img_paths_main = []
 
     folds = 5
     # Create train/val/test MRN list
@@ -387,11 +389,14 @@ def main(args):
             )
         
             if epoch==(args.epochs-1) and val:
-                gt,out_prob,pred,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes)
+                gt,out_prob,pred,img_paths,embeddings,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes)
                 
                 true_labels_list.extend(gt)
                 output_prob_list.extend(out_prob)
                 preds_list.extend(pred)
+                embedding_lists = [embedding.tolist() for embedding in embeddings]
+                embeddings_lists_main.extend(embedding_lists)
+                img_paths_main.extend(img_paths)
 
                 if max_auc<val_auc_roc:
                     max_auc = val_auc_roc
@@ -434,6 +439,12 @@ def main(args):
             auc_roc_all = roc_auc_score(true_labels_list, preds_list,multi_class='ovr',average='macro')
             print(f'\n\nAverage validation AUROC for all images: {auc_roc_all}\n')
             
+    # Save image paths and model embeddings
+    data_dict = dict(zip(img_paths_main, embeddings_lists_main))
+    json_file_path = args.task + f'embeddings.json'
+    with open(json_file_path, 'w') as json_file:
+        json.dump(data_dict, json_file)
+    
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
