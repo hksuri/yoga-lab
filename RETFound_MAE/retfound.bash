@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=retfound_dia5_huzaifa
+#SBATCH --job-name=retfound_orange_huzaifa
 #SBATCH --partition=gpu  # Specify the GPU partition
 #SBATCH --gres=gpu:1     # Request 1 GPU
 #SBATCH --time=24:00:00  # Maximum runtime (adjust as needed)
@@ -11,9 +11,9 @@
 #SBATCH --chdir /research/labs/ophthalmology/iezzi/m294666/yoga-lab/RETFound_MAE
 
 # Train + Eval
-python main_finetune.py --epochs 1 --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5/' --rf 'dia5' --log_task '/dia5/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
+# python main_finetune.py --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5/' --rf 'dia5' --log_task '/dia5/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
 # python main_finetune.py --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref/' --rf 'intref' --log_task '/intref/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
-# python main_finetune.py --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
+python main_finetune.py --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
 
 # python main_finetune.py --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref/' --log_task '/intref/' --data_path '/research/labs/ophthalmology/iezzi/m294666/data_intref_retfound'
 # python main_finetune.py --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange/' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/data_orange_retfound'
