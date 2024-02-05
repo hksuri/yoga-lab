@@ -3,6 +3,7 @@
 # Partly revised by YZ @UCL&Moorfields
 # --------------------------------------------------------
 
+import csv
 import argparse
 import datetime
 import json
@@ -438,13 +439,23 @@ def main(args):
             print(f'\nSize of each true label and pred element: {true_labels_list[0].shape} and {preds_list[0].shape}')
             auc_roc_all = roc_auc_score(true_labels_list, preds_list,multi_class='ovr',average='macro')
             print(f'\n\nAverage validation AUROC for all images: {auc_roc_all}\n')
-            
-    # Save image paths and model embeddings
-    data_dict = dict(zip(img_paths_main, embeddings_lists_main))
-    json_file_path = args.task + f'embeddings.json'
-    with open(json_file_path, 'w') as json_file:
-        json.dump(data_dict, json_file)
-    
+
+    # Combine the lists into a list of rows
+    data = list(zip(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main))
+
+    # Specify the CSV file path
+    csv_file_path = args.task + f'embeddings.csv'
+
+    # Write the data to the CSV file
+    with open(csv_file_path, 'w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        
+        # Write the header
+        writer.writerow(['img_paths', 'true_labels', 'output_probs', 'embeddings'])
+        
+        # Write the data
+        writer.writerows(data)
+        
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
