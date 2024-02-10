@@ -118,6 +118,10 @@ def get_args_parser():
                         help='Use class token instead of global pool for classification')
     parser.add_argument('--rf', type=str, required=True,
                         help = 'risk factor from dia5, intref, orange, va, thick2, srf')
+    parser.add_argument('--zoom', type=str, default='',
+                        help = 'zoom in or out of the validation images')
+    parser.add_argument('--zoom_level', type=float, default=0.,
+                        help = 'zoom level')
 
     # Dataset parameters
     # parser.add_argument('--data_path', default='/home/jupyter/Mor_DR_data/data/data/IDRID/Disease_Grading/', type=str,
