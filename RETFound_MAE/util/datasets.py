@@ -71,15 +71,51 @@ def build_transform(is_train, args):
 
     # eval transform
     t = []
-    if args.input_size <= 224:
-        crop_pct = 224 / 256
+
+    ###################### ZOOM ########################
+
+    if args.zoom == 'in':
+
+        # Zoom In
+
+        # Calculate the resized size
+        resize_size = int(1 / (1 - args.zoom_level) * args.input_size)
+        # Resize the image to zoom in
+        t.append(transforms.Resize(resize_size,interpolation=transforms.InterpolationMode.BICUBIC)) 
+        # Center crop to maintain the original resolution            
+        t.append(transforms.CenterCrop(args.input_size)) 
+        # Resize back to original size (for uniformity)                                                      
+        t.append(transforms.Resize(args.input_size,interpolation=transforms.InterpolationMode.BICUBIC)) 
+
+    elif args.zoom == 'out':
+
+        # Zoom Out
+
+        # Calculate the resized size
+        resize_size = int((1 - args.zoom_level) * args.input_size)
+        padding = (args.input_size - resize_size) // 2
+        # Resize the image to zoom in
+        t.append(transforms.Resize(resize_size,interpolation=transforms.InterpolationMode.BICUBIC)) 
+        # Add padding
+        t.append(transforms.Pad(padding, fill=0, padding_mode='constant')) 
+        # Center crop to maintain the original resolution            
+        t.append(transforms.CenterCrop(args.input_size)) 
+        # Resize back to original size (for uniformity)                                                      
+        t.append(transforms.Resize(args.input_size,interpolation=transforms.InterpolationMode.BICUBIC))                                                           
+    
     else:
-        crop_pct = 1.0
-    size = int(args.input_size / crop_pct)
-    t.append(
+        if args.input_size <= 224:
+            crop_pct = 224 / 256
+        else:
+            crop_pct = 1.0
+        size = int(args.input_size / crop_pct)
+        t.append(
         transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC), 
-    )
-    t.append(transforms.CenterCrop(args.input_size))
+        )
+        t.append(transforms.CenterCrop(args.input_size))
+
+    ####################################################
+
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(mean, std))
     return transforms.Compose(t)
