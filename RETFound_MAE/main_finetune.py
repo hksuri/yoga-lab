@@ -122,6 +122,8 @@ def get_args_parser():
                         help = 'zoom in or out of the validation images')
     parser.add_argument('--zoom_level', type=float, default=0.,
                         help = 'zoom level')
+    parser.add_argument('--save_images', action='store_true', default=False)
+    parser.add_argument('--freeze', action='store_true', default=False)
 
     # Dataset parameters
     # parser.add_argument('--data_path', default='/home/jupyter/Mor_DR_data/data/data/IDRID/Disease_Grading/', type=str,
@@ -187,6 +189,7 @@ def main(args):
     img_paths_main = []
 
     folds = 5
+    best_val_auc_across_all = 0.
     # Create train/val/test MRN list
     # train_val_sets, test_set = split_folders(args.data_path)
     train_val_sets = split_folders(args.data_path)
@@ -203,11 +206,18 @@ def main(args):
 
             print(f'\n\n######## Fold: {fold+1} #############\n')
 
-            train_set = [set_ for i, set_ in enumerate(train_val_sets) if i != fold]
-            train_set = [item for sublist in train_set for item in sublist]
-            val_set = train_val_sets[fold]
-            dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
-            dataset_val = build_dataset(is_train='val', mrn_list=val_set, args=args)
+            if args.eval:
+                # create val_set using all the train_val_sets
+                train_set = [item for sublist in train_val_sets for item in sublist]
+                print(f'Length of train_set: {len(train_set)}')
+                dataset_train = build_dataset(is_train='val', mrn_list=train_set, args=args)
+            
+            else:
+                train_set = [set_ for i, set_ in enumerate(train_val_sets) if i != fold]
+                train_set = [item for sublist in train_set for item in sublist]
+                val_set = train_val_sets[fold]
+                dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
+                dataset_val = build_dataset(is_train='val', mrn_list=val_set, args=args)
 
         else:
 
@@ -248,7 +258,7 @@ def main(args):
                 dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
             )
             print("Sampler_train = %s" % str(sampler_train))
-            if val:
+            if val and not eval:
                 if args.dist_eval:
                     if len(dataset_val) % num_tasks != 0:
                         print('Warning: Enabling distributed evaluation with an eval dataset not divisible by process number. '
@@ -280,16 +290,16 @@ def main(args):
             log_writer = None
 
         data_loader_train = torch.utils.data.DataLoader(
-            dataset_train, sampler=sampler_train,
+            dataset_train,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             pin_memory=args.pin_mem,
             drop_last=True,
         )
 
-        if val:
+        if val and not args.eval:
             data_loader_val = torch.utils.data.DataLoader(
-                dataset_val, sampler=sampler_val,
+                dataset_val,
                 batch_size=args.batch_size,
                 num_workers=args.num_workers,
                 pin_memory=args.pin_mem,
@@ -322,13 +332,20 @@ def main(args):
             msg = model.load_state_dict(checkpoint_model, strict=False)
             print(msg)
 
-            if args.global_pool:
-                assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
-            else:
-                assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
+            # if args.global_pool:
+            #     assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
+            # else:
+            #     assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
 
             # manually initialize fc layer
-            trunc_normal_(model.head.weight, std=2e-5)
+            # trunc_normal_(model.head.weight, std=2e-5)
+
+        # Freeze every layer except the head
+        if args.freeze:
+            for name, param in model.named_parameters():
+                # if 'head1' not in name and 'head2' not in name:
+                if 'head' not in name:
+                    param.requires_grad = False
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
@@ -337,7 +354,11 @@ def main(args):
         n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
         print("Model = %s" % str(model_without_ddp))
-        print('number of params (M): %.2f' % (n_parameters / 1.e6))
+        if args.freeze:
+            print("Freezing all layers except the head")
+            print('number of params (M): %.2f' % (n_parameters))
+        else:
+            print('number of params (M): %.2f' % (n_parameters / 1.e6))
 
         eff_batch_size = args.batch_size * args.accum_iter * misc.get_world_size()
         
@@ -373,10 +394,13 @@ def main(args):
         print("criterion = %s" % str(criterion))
 
         misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
-        
-        # if args.eval:
-        #     _,_,_,test_stats,auc_roc = evaluate(data_loader_test, model, device, args.task, epoch=0, mode='test',num_class=args.nb_classes)
-        #     exit(0)
+
+        if args.eval:
+            print(f"Start evaluation:\n")
+            gt,_,pred,_,_,test_stats,auc_roc = evaluate(data_loader_train, model, device, args.task, epoch=0, mode='test',num_class=args.nb_classes, save_images=args.save_images)
+            auc_roc_all = roc_auc_score(gt, pred,multi_class='ovr',average='macro')
+            print(f'\n\nAverage validation AUROC for all images: {auc_roc_all}\n')
+            exit(0)
 
         print(f"Start training for {args.epochs} epochs")
         start_time = time.time()
@@ -394,7 +418,7 @@ def main(args):
             )
         
             if epoch==(args.epochs-1) and val:
-                gt,out_prob,pred,img_paths,embeddings,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes)
+                gt,out_prob,pred,img_paths,embeddings,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=args.save_images)
                 
                 true_labels_list.extend(gt)
                 output_prob_list.extend(out_prob)
@@ -406,6 +430,8 @@ def main(args):
                 if max_auc<val_auc_roc:
                     max_auc = val_auc_roc
                     
+                if best_val_auc_across_all<val_auc_roc:
+                    best_val_auc_across_all = val_auc_roc
                     if args.output_dir:
                         misc.save_model(
                             args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
