@@ -25,6 +25,14 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
 
             del self.norm  # remove the original norm
 
+        ############################################################
+        # del self.head
+        # self.head1 = nn.Linear(self.embed_dim, 64)
+        # self.head2 = nn.Linear(64, 2)
+        # self.fc_norm2 = norm_layer(64)
+        # self.gelu_head = nn.GELU()
+        ############################################################
+
     def forward_features(self, x):
         B = x.shape[0]
         x = self.patch_embed(x)
@@ -38,11 +46,8 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             x = blk(x)
 
         if self.global_pool:
-            # print(f'x before: {x.size()}')
             x = x[:, 1:, :].mean(dim=1)  # global pool without cls token
-            # print(f'x after: {x.size()}')
             outcome = self.fc_norm(x)
-            # print(f'outcome: {outcome.size()}')
         else:
             x = self.norm(x)
             outcome = x[:, 0]
@@ -51,6 +56,11 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     
     def forward(self, x):
         emb,x = self.forward_features(x)
+        ############################################################
+        # x = self.gelu_head(self.head1(x))
+        # x = self.fc_norm2(x)
+        # x = self.head2(x)
+        ############################################################
         x = self.head(x)
         return emb,x
 
