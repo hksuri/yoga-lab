@@ -19,8 +19,11 @@ from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, average_pre
 from pycm import *
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 
+from PIL import Image
 
+from vit_grad_rollout import VITAttentionRollout
 
 
 def misc_measures(confusion_matrix):
@@ -138,7 +141,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 @torch.no_grad()
-def evaluate(data_loader, model, device, task, epoch, mode, num_class):
+def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_images):
     print(f'Mode: {mode}')
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -147,6 +150,22 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class):
     
     if not os.path.exists(task):
         os.makedirs(task)
+
+    ############################################################
+    
+    # Create new folder named test_images in task. Delete if exists already
+    if save_images:
+    
+        if not os.path.exists(task+'test_images'):
+            os.makedirs(task+'test_images')
+        else:
+            os.system('rm -r '+task+'test_images')
+            os.makedirs(task+'test_images')
+
+        # Define the VITAttentionGradRollout object
+        grad_rollout = VITAttentionRollout(model, discard_ratio=0.9, head_fusion='max')
+
+    ############################################################
 
     prediction_decode_list = []
     output_prob_list = []
@@ -184,11 +203,49 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class):
 
             output_prob_list.extend(prediction_softmax.cpu().detach().numpy())
 
+        if save_images:
+            # For all images in a batch, generate the grad_rollout mask, put it on the image and save it in the test_images folder
+            for i in range(images.size(0)):
+
+                gt = target[i].item()
+                pred = prediction_decode[i].item()
+                path = batch[0][i]
+                
+                img_original = Image.open(path)
+                img_original = img_original.resize((224, 224))
+                
+                img_tensor = images[i:i+1]
+                mask = grad_rollout(img_tensor)
+
+                np_img = np.array(img_original)[:, :, ::-1]
+                mask = cv2.resize(mask, (np_img.shape[1], np_img.shape[0]))
+
+                # print(f'image original max, mean, min: {np_img.max()}, {np_img.mean()}, {np_img.min()}')
+
+                img = np.float32(np_img) / 255
+                heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
+                heatmap = np.float32(heatmap) / 255
+
+                # print(f'heatmap max, mean, min: {heatmap.max()}, {heatmap.mean()}, {heatmap.min()}')
+
+                cam = heatmap + np.float32(img)
+                cam = cam / np.max(cam)
+                cam = cv2.hconcat([img, cam])
+                cam = np.uint8(255 * cam)
+                cv2.putText(cam, f'GT: {gt}', (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(cam, f'Pred: {pred}', (10, 220), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                
+                # print(f'cam max, mean, min: {cam.max()}, {cam.mean()}, {cam.min()}')
+                
+                # Save img_original on the left and cam on the right
+                cv2.imwrite(task+'test_images/'+str(path).split('/')[-1].split('.')[0]+'_mask.jpg', cam)
+
         acc1,_ = accuracy(output, target, topk=(1,2))
 
         batch_size = images.shape[0]
         metric_logger.update(loss=loss.item())
         metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
+
     # gather the stats from all processes
     true_label_decode_list = np.array(true_label_decode_list)
     prediction_decode_list = np.array(prediction_decode_list)
@@ -208,7 +265,6 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class):
         for i in data2:
             wf.writerow(i)
             
-    
     if mode=='test':
         cm = ConfusionMatrix(actual_vector=true_label_decode_list, predict_vector=prediction_decode_list)
         cm.plot(cmap=plt.cm.Blues,number_label=True,normalized=True,plot_lib="matplotlib")
