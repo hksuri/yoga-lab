@@ -163,7 +163,7 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
             os.makedirs(task+'test_images')
 
         # Define the VITAttentionGradRollout object
-        grad_rollout = VITAttentionRollout(model, discard_ratio=0.9, head_fusion='max')
+        grad_rollout = VITAttentionRollout(model, discard_ratio=0.2, head_fusion='max')
 
     ############################################################
 
@@ -212,7 +212,7 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 path = batch[0][i]
                 
                 img_original = Image.open(path)
-                img_original = img_original.resize((224, 224))
+                # img_original = img_original.resize((224, 224))
                 
                 img_tensor = images[i:i+1]
                 mask = grad_rollout(img_tensor)
@@ -232,8 +232,8 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 cam = cam / np.max(cam)
                 cam = cv2.hconcat([img, cam])
                 cam = np.uint8(255 * cam)
-                cv2.putText(cam, f'GT: {gt}', (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(cam, f'Pred: {pred}', (10, 220), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(cam, f'GT: {gt}', (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
+                cv2.putText(cam, f'Pred: {pred}', (20, 320), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
                 
                 # print(f'cam max, mean, min: {cam.max()}, {cam.mean()}, {cam.min()}')
                 
