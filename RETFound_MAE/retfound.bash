@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=retfound_orange_huzaifa
+#SBATCH --job-name=retfound_dia5_huzaifa
 #SBATCH --partition=gpu  # Specify the GPU partition
 #SBATCH --gres=gpu:1     # Request 1 GPU
 #SBATCH --time=24:00:00  # Maximum runtime (adjust as needed)
@@ -16,9 +16,9 @@
 # python main_finetune.py --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
 
 # Train + Eval (CF only)
-# python main_finetune.py --save_images --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5_CF/' --rf 'dia5' --log_task '/dia5/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
-# python main_finetune.py --save_images --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref_CF/' --rf 'intref' --log_task '/intref/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
-# python main_finetune.py --save_images --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange_CF/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
+python main_finetune.py --freeze --save_images --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5_CF/' --rf 'dia5' --log_task '/dia5/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
+# python main_finetune.py --freeze --save_images --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref_CF/' --rf 'intref' --log_task '/intref/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
+# python main_finetune.py --freeze --save_images --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange_CF/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
 
 # Eval only
 # python main_finetune.py --eval --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5/checkpoint-best.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5/' --rf 'dia5' --log_task '/dia5/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
@@ -26,9 +26,9 @@
 # python main_finetune.py --eval --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange/checkpoint-best.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name'
 
 # Eval CF on OPTOS only
-python main_finetune.py --eval --save_images --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5_CF/checkpoint-best.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5_CF/' --rf 'dia5' --log_task '/dia5/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
-# python main_finetune.py --eval --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref_CF/checkpoint-best.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref_CF/' --rf 'intref' --log_task '/intref/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_OPTOS_only'
-# python main_finetune.py --eval --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange_CF/checkpoint-best.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange_CF/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_OPTOS_only'
+# python main_finetune.py --eval --save_images --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5_CF/checkpoint-best-frozen-encoder.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_dia5_CF/' --rf 'dia5' --log_task '/dia5/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
+# python main_finetune.py --eval --save_images --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref_CF/checkpoint-best-frozen-encoder.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_intref_CF/' --rf 'intref' --log_task '/intref/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
+# python main_finetune.py --eval --save_images --resume '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange_CF/checkpoint-best-frozen-encoder.pth' --task '/research/labs/ophthalmology/iezzi/m294666/retfound_task_orange_CF/' --rf 'orange' --log_task '/orange/' --data_path '/research/labs/ophthalmology/iezzi/m294666/nevus_data_500_risk_factors_processed_RF_in_name_CF_only'
 
 
 # Job complete
