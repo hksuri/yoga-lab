@@ -23,7 +23,9 @@ import cv2
 
 from PIL import Image
 
-from vit_grad_rollout import VITAttentionRollout
+from vit_rollout import VITAttentionRollout
+from vit_grad_rollout import VITAttentionGradRollout
+from vit_explain import LRP
 
 
 def misc_measures(confusion_matrix):
@@ -97,6 +99,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         with torch.cuda.amp.autocast():
             # print(f'samples size: {samples.size()}')
             _,outputs = model(samples)
+            # outputs = model(samples)
             loss = criterion(outputs, targets)
 
         loss_value = loss.item()
@@ -140,7 +143,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 
-@torch.no_grad()
+# @torch.no_grad()
 def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_images):
     print(f'Mode: {mode}')
     criterion = torch.nn.CrossEntropyLoss()
@@ -163,7 +166,9 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
             os.makedirs(task+'test_images')
 
         # Define the VITAttentionGradRollout object
-        grad_rollout = VITAttentionRollout(model, discard_ratio=0.2, head_fusion='max')
+        # grad_rollout = VITAttentionRollout(model, discard_ratio=0.2, head_fusion='max')
+        grad_rollout = VITAttentionGradRollout(model, discard_ratio=0.9)
+        # attribution_generator = LRP(model)
 
     ############################################################
 
@@ -189,11 +194,14 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
 
         # compute output
         with torch.cuda.amp.autocast():
-            emb,output = model(images)
+            with torch.no_grad():
+                emb,output = model(images)
             model_embeddings.extend(emb)
+            # output = model(images)
+            # model_embeddings.extend(np.zeros(output.size(0)))
             loss = criterion(output, target)
             prediction_softmax = nn.Softmax(dim=1)(output)
-            _,prediction_decode = torch.max(prediction_softmax, 1)
+            max_probs,prediction_decode = torch.max(prediction_softmax, 1)
             _,true_label_decode = torch.max(true_label, 1)
 
             prediction_decode_list.extend(prediction_decode.cpu().detach().numpy())
@@ -209,14 +217,22 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
 
                 gt = target[i].item()
                 pred = prediction_decode[i].item()
+                prob = max_probs[i].item()
+                prob = round(prob, 3)
                 path = batch[0][i]
                 
                 img_original = Image.open(path)
                 # img_original = img_original.resize((224, 224))
                 
                 img_tensor = images[i:i+1]
-                mask = grad_rollout(img_tensor)
-
+                # print(f'img_tensor size: {img_tensor.size()}')
+                mask = grad_rollout(img_tensor,1)
+                # transformer_attribution = attribution_generator.generate_LRP(img_tensor, method="transformer_attribution", index=1).detach()
+                # transformer_attribution = transformer_attribution.reshape(1, 1, 14, 14)
+                # transformer_attribution = torch.nn.functional.interpolate(transformer_attribution, scale_factor=16, mode='bilinear')
+                # transformer_attribution = transformer_attribution.reshape(224, 224).data.cpu().numpy()
+                # mask = (transformer_attribution - transformer_attribution.min()) / (transformer_attribution.max() - transformer_attribution.min())
+                # print(f'mask size: {mask.shape}')
                 np_img = np.array(img_original)[:, :, ::-1]
                 mask = cv2.resize(mask, (np_img.shape[1], np_img.shape[0]))
 
@@ -234,6 +250,7 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 cam = np.uint8(255 * cam)
                 cv2.putText(cam, f'GT: {gt}', (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
                 cv2.putText(cam, f'Pred: {pred}', (20, 320), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
+                cv2.putText(cam, f'Prob: {prob}', (20, 490), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
                 
                 # print(f'cam max, mean, min: {cam.max()}, {cam.mean()}, {cam.min()}')
                 
