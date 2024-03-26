@@ -6,9 +6,11 @@
 import builtins
 import datetime
 import os
+import csv
 import time
 from collections import defaultdict, deque
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 import torch
 import torch.distributed as dist
@@ -334,3 +336,30 @@ def all_reduce_mean(x):
     else:
         return x
     
+def plot_loss(train_loss, val_loss, fold, args):
+    # Plot train and val loss on a single graph with axis labels and legend and save to args.tsk as 'loss_fold.png'
+    plt.figure()
+    plt.plot(train_loss, label='Train Loss')
+    plt.plot(val_loss, label='Val Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(args.task + f'loss_fold_{fold+1}.png') 
+    plt.close()  
+    
+def save_test_data(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main, args):
+    # Combine the lists into a list of rows
+    data = list(zip(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main))
+
+    # Specify the CSV file path
+    csv_file_path = args.task + f'embeddings.csv'
+
+    # Write the data to the CSV file
+    with open(csv_file_path, 'w', newline='') as csv_file:
+        writer = csv.writer(csv_file)
+        
+        # Write the header
+        writer.writerow(['img_paths', 'true_labels', 'output_probs', 'embeddings'])
+        
+        # Write the data
+        writer.writerows(data)
