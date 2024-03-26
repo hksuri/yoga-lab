@@ -26,11 +26,13 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
             del self.norm  # remove the original norm
 
         ############################################################
-        # del self.head
-        # self.head1 = nn.Linear(self.embed_dim, 64)
-        # self.head2 = nn.Linear(64, 2)
-        # self.fc_norm2 = norm_layer(64)
-        # self.gelu_head = nn.GELU()
+        del self.head
+        self.head1 = nn.Linear(self.embed_dim, 64)
+        self.head2 = nn.Linear(64, 2)
+        self.fc_norm2 = norm_layer(64)
+        self.gelu_head = nn.GELU()
+        self.dropout1 = nn.Dropout(p=0.3)
+        self.dropout2 = nn.Dropout(p=0.3)
         ############################################################
 
     def forward_features(self, x):
@@ -57,11 +59,13 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     def forward(self, x):
         emb,x = self.forward_features(x)
         ############################################################
-        # x = self.gelu_head(self.head1(x))
-        # x = self.fc_norm2(x)
-        # x = self.head2(x)
+        x = self.dropout1(x)
+        x = self.gelu_head(self.head1(x))
+        x = self.fc_norm2(x)
+        x = self.dropout2(x)
+        x = self.head2(x)
         ############################################################
-        x = self.head(x)
+        # x = self.head(x)
         return emb,x
 
 
