@@ -12,9 +12,12 @@ import os
 import time
 from pathlib import Path
 from sklearn.metrics import roc_auc_score
+import matplotlib.pyplot as plt
 
 import torch
+import torch.nn as nn
 import torch.backends.cudnn as cudnn
+import torchvision.models as models
 from torch.utils.tensorboard import SummaryWriter
 
 import timm
@@ -33,7 +36,6 @@ from util.misc import NativeScalerWithGradNormCount as NativeScaler
 import models_vit
 
 from engine_finetune import train_one_epoch, evaluate
-
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE fine-tuning for image classification', add_help=False)
@@ -181,7 +183,7 @@ def main(args):
 
     cudnn.benchmark = True
 
-    val_aurocs = 0.
+    test_aurocs = 0.
     true_labels_list = []
     output_prob_list = []
     preds_list = []
@@ -189,7 +191,7 @@ def main(args):
     img_paths_main = []
 
     folds = 5
-    best_val_auc_across_all = 0.
+    # best_val_auc_across_all = 0.
     # Create train/val/test MRN list
     # train_val_sets, test_set = split_folders(args.data_path)
     train_val_sets = split_folders(args.data_path)
@@ -215,9 +217,20 @@ def main(args):
             else:
                 train_set = [set_ for i, set_ in enumerate(train_val_sets) if i != fold]
                 train_set = [item for sublist in train_set for item in sublist]
-                val_set = train_val_sets[fold]
+
+                # Calculate the size of each part to divide the list into 8 equal parts
+                part_size = len(train_set) // 8
+                # Extract the last 1/8th of the list for the validation set
+                val_set = train_set[-part_size:]
+                # Keep the first 7/8th of the list as the training set
+                train_set = train_set[:-part_size]
+
+                test_set = train_val_sets[fold]
                 dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
                 dataset_val = build_dataset(is_train='val', mrn_list=val_set, args=args)
+                dataset_test = build_dataset(is_train='test', mrn_list=test_set, args=args)
+
+                print(f'Train set size: {len(train_set)}, val set size: {len(val_set)}, test set size: {len(test_set)}\n')
 
         else:
 
@@ -249,6 +262,18 @@ def main(args):
             drop_path_rate=args.drop_path,
             global_pool=args.global_pool,
         )
+        # os.environ['TORCH_HOME'] = '/research/labs/ophthalmology/iezzi/m294666/base_models'
+        # model = models.resnet50(weights = 'DEFAULT')
+        # num_features = model.fc.in_features
+        # model.fc = nn.Sequential(
+        #     nn.Linear(num_features, 512),
+        #     nn.ReLU(),
+        #     nn.Linear(512, 256),
+        #     nn.ReLU(),
+        #     nn.Linear(256, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 2)  # Output layer for binary classification
+        # )
 
         # if args.distributed:
         if True:  # args.distributed:
@@ -306,13 +331,13 @@ def main(args):
                 drop_last=False
             )
 
-        # data_loader_test = torch.utils.data.DataLoader(
-        #     dataset_test, sampler=sampler_test,
-        #     batch_size=args.batch_size,
-        #     num_workers=args.num_workers,
-        #     pin_memory=args.pin_mem,
-        #     drop_last=False
-        # )
+            data_loader_test = torch.utils.data.DataLoader(
+                dataset_test,
+                batch_size=args.batch_size,
+                num_workers=args.num_workers,
+                pin_memory=args.pin_mem,
+                drop_last=False
+            )
 
         if args.finetune and not args.eval:
             checkpoint = torch.load(args.finetune, map_location='cpu')
@@ -343,8 +368,8 @@ def main(args):
         # Freeze every layer except the head
         if args.freeze:
             for name, param in model.named_parameters():
-                # if 'head1' not in name and 'head2' not in name:
-                if 'head' not in name:
+                if 'head1' not in name and 'head2' not in name:
+                # if 'head' not in name:
                     param.requires_grad = False
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -356,7 +381,7 @@ def main(args):
         print("Model = %s" % str(model_without_ddp))
         if args.freeze:
             print("Freezing all layers except the head")
-            print('number of params (M): %.2f' % (n_parameters))
+            print('number of params: %.2f' % (n_parameters))
         else:
             print('number of params (M): %.2f' % (n_parameters / 1.e6))
 
@@ -381,6 +406,7 @@ def main(args):
             layer_decay=args.layer_decay
         )
         optimizer = torch.optim.AdamW(param_groups, lr=args.lr)
+        # optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
         loss_scaler = NativeScaler()
 
         if mixup_fn is not None:
@@ -404,11 +430,15 @@ def main(args):
 
         print(f"Start training for {args.epochs} epochs")
         start_time = time.time()
-        max_accuracy = 0.0
         max_auc = 0.0
+        train_loss = []
+        val_loss = []
+
         for epoch in range(args.start_epoch, args.epochs):
             if args.distributed:
                 data_loader_train.sampler.set_epoch(epoch)
+            
+            # Train
             train_stats = train_one_epoch(
                 model, criterion, data_loader_train,
                 optimizer, device, epoch, loss_scaler,
@@ -416,9 +446,33 @@ def main(args):
                 log_writer=log_writer,
                 args=args
             )
+
+            # Validation
+            _,_,_,_,_,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=False)
         
+            # Save train and val loss
+            train_loss.append(train_stats['loss'])
+            val_loss.append(val_stats['loss'])
+
+            # Save best model
+            if max_auc < val_auc_roc:
+                max_auc = val_auc_roc
+                misc.save_model(
+                        args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
+                        loss_scaler=loss_scaler, epoch=epoch)
+                print('*** Best model found. Validation AUROC: %.4f ***' % val_auc_roc)
+            
+            # Test
             if epoch==(args.epochs-1) and val:
-                gt,out_prob,pred,img_paths,embeddings,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=args.save_images)
+
+                print('*** Testing best validation model on test set ***')
+
+                # Load best model
+                checkpoint = torch.load(args.task + 'checkpoint-best.pth', map_location='cpu')
+                model_without_ddp.load_state_dict(checkpoint['model'])
+                # misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
+
+                gt,out_prob,pred,img_paths,embeddings,_,test_auc_roc = evaluate(data_loader_test, model, device,args.task,epoch, mode='test',num_class=args.nb_classes, save_images=args.save_images)
                 
                 true_labels_list.extend(gt)
                 output_prob_list.extend(out_prob)
@@ -427,67 +481,27 @@ def main(args):
                 embeddings_lists_main.extend(embedding_lists)
                 img_paths_main.extend(img_paths)
 
-                if max_auc<val_auc_roc:
-                    max_auc = val_auc_roc
-                    
-                if best_val_auc_across_all<val_auc_roc:
-                    best_val_auc_across_all = val_auc_roc
-                    if args.output_dir:
-                        misc.save_model(
-                            args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
-                            loss_scaler=loss_scaler, epoch=epoch)
+                    # _,_,_,_,_,_,_ = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=args.save_images)
+            # else:
+            #     misc.save_model(
+            #         args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
+            #         loss_scaler=loss_scaler, epoch=epoch)
 
-                    print('*** Best model found. Validation AUROC: %.4f ***' % val_auc_roc)
-                    _,_,_,_,_,_,_ = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=True)
-            else:
-                misc.save_model(
-                    args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
-                    loss_scaler=loss_scaler, epoch=epoch)
+        # Plot train/val loss
+        misc.plot_loss(train_loss, val_loss, fold, args)    
 
-            # if epoch==(args.epochs-1) and not val:
-            #     _,_,_,test_stats,auc_roc = evaluate(data_loader_test, model, device,args.task,epoch, mode='test',num_class=args.nb_classes)
-            
-            # if val:
-            #     if log_writer is not None:
-            #         log_writer.add_scalar('perf/val_acc1', val_stats['acc1'], epoch)
-            #         log_writer.add_scalar('perf/val_auc', val_auc_roc, epoch)
-            #         log_writer.add_scalar('perf/val_loss', val_stats['loss'], epoch)
-                
-            # log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-            #                 'epoch': epoch,
-            #                 'n_parameters': n_parameters}
-
-            # if args.output_dir and misc.is_main_process():
-            #     if log_writer is not None:
-            #         log_writer.flush()
-            #     with open(os.path.join(args.output_dir, "log.txt"), mode="a", encoding="utf-8") as f:
-            #         f.write(json.dumps(log_stats) + "\n")
-
-        if val: val_aurocs += max_auc
+        if val: test_aurocs += test_auc_roc
         if fold == folds-1:
-            print(f'\n\nAverage validation AUROC: {val_aurocs/folds}\n')
-            print(f'\nLen of true label and pred list: {len(true_labels_list)} and {len(preds_list)}')
-            print(f'\nOne true label: {true_labels_list[0]}')
-            print(f'\nOne pred: {preds_list[0]}')
-            print(f'\nSize of each true label and pred element: {true_labels_list[0].shape} and {preds_list[0].shape}')
+            print(f'\n\nAverage test AUROC: {test_aurocs/folds}\n')
+            # print(f'\nLen of true label and pred list: {len(true_labels_list)} and {len(preds_list)}')
+            # print(f'\nOne true label: {true_labels_list[0]}')
+            # print(f'\nOne pred: {preds_list[0]}')
+            # print(f'\nSize of each true label and pred element: {true_labels_list[0].shape} and {preds_list[0].shape}')
             auc_roc_all = roc_auc_score(true_labels_list, preds_list,multi_class='ovr',average='macro')
-            print(f'\n\nAverage validation AUROC for all images: {auc_roc_all}\n')
+            print(f'\n\nAverage test AUROC for all images: {auc_roc_all}\n')
 
-    # Combine the lists into a list of rows
-    data = list(zip(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main))
-
-    # Specify the CSV file path
-    csv_file_path = args.task + f'embeddings.csv'
-
-    # Write the data to the CSV file
-    with open(csv_file_path, 'w', newline='') as csv_file:
-        writer = csv.writer(csv_file)
-        
-        # Write the header
-        writer.writerow(['img_paths', 'true_labels', 'output_probs', 'embeddings'])
-        
-        # Write the data
-        writer.writerows(data)
+    # Save image paths, true labels, output probs, and embeddings to a CSV file
+    misc.save_test_data(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main, args)
         
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
