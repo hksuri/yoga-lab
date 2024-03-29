@@ -73,6 +73,9 @@ RUN pip install numpy==1.21.2
 RUN pip install scikit-learn
 RUN pip install pandas
 RUN pip install jupyter
+RUN pip install Pillow
+RUN pip install tqdm
+RUN pip install wandb
 RUN pip install h5py
 RUN pip install graphviz
 RUN pip install pydot
@@ -81,6 +84,7 @@ RUN pip install matplotlib
 RUN pip install seaborn
 RUN pip install joblib
 RUN pip install opencv-contrib-python
+RUN pip install gdown
 # RUN pip install -U mne
 # RUN pip install -U mne-connectivity
 # RUN pip install -U mne_features
@@ -143,7 +147,7 @@ RUN CMAKE_ARGS="-DOPENCV_ENABLE_NONFREE=ON" pip install --no-binary=opencv-contr
 
 # Create some command aliases and turn off jupyter notebook tokens
 RUN echo 'alias python="/home/user/miniconda/bin/python"' >> /home/user/.bashrc
-RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --port=8892 --allow-root"' >> /home/user/.bashrc
+RUN echo 'alias jp="jupyter notebook --no-browser --ip=0.0.0.0 --port=8893 --allow-root"' >> /home/user/.bashrc
 # RUN mkdir -p /home/user/.jupyter && echo "c.NotebookApp.token = u'sh3r10ck3d'" >> /home/user/.jupyter/jupyter_notebook_config.py && echo "c.NotebookApp.notebook_dir = '/home/huzaifa'" >> /home/user/.jupyter/jupyter_notebook_config.py
 RUN mkdir -p /home/user/.jupyter && echo "c.NotebookApp.token = u'sh3r10ck3d'" >> /home/user/.jupyter/jupyter_notebook_config.py
 
