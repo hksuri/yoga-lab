@@ -1,32 +1,32 @@
 import argparse
 import logging
-import gc
+# import gc
 import os
-import random
-import sys
+# import random
+# import sys
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
+# import torch.nn.functional as F
+# import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
 from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-import numpy as np
-from PIL import Image
+# import numpy as np
+# from PIL import Image
 
-import wandb
-from evaluate import evaluate
+# import wandb
+# from evaluate import evaluate
 from unet import UNet
 from utils.data_loading import BasicDataset
-from utils.dice_score import dice_loss
+# from utils.dice_score import dice_loss
 from utils.utils import plot_img_and_mask, plot_train_val_loss, apply_random_transformations
 from utils.loss import wssl_loss
 from inpaint import load_freeform_masks, inpaint_freeform
 
-# dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/resized_train_cropped_0_label/'
-dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/test/'
+dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/resized_train_cropped_0_label/'
+# dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/test/'
 # dir_mask = Path('./data/masks/')
 dir_checkpoint = Path('/mnt/ssd_4tb_0/huzaifa/unet/checkpoints/')
 dir_output = '/home/huzaifa/workspace/Pytorch-UNet/output/'
@@ -251,7 +251,7 @@ def train_model(
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=1, help='Number of epochs')
+    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=100, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=32, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-4,
                         help='Learning rate', dest='lr')
@@ -268,8 +268,6 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    gc.collect()
-    torch.cuda.empty_cache()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
