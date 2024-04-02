@@ -90,16 +90,16 @@ RUN pip install gdown
 # RUN pip install -U mne_features
 
 # install pytorch + pytorch geometric + pytorch captum
-RUN conda install pytorch==1.7.0 torchvision==0.8.0 cudatoolkit=11.0 -c pytorch
-RUN pip install torch-scatter==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
-RUN pip install torch-sparse==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
-RUN pip install torch-cluster==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
-RUN pip install torch-spline-conv==latest+cu110 -f https://pytorch-geometric.com/whl/torch-1.7.0.html
+RUN conda install pytorch==1.10.0 torchvision==0.11.0 torchaudio==0.10.0 cudatoolkit=11.3 -c pytorch
+RUN pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.10.0+cu113.html
+RUN pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.10.0+cu113.html
+RUN pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.10.0+cu113.html
+RUN pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.10.0+cu113.html
 RUN pip install torch-geometric
 RUN pip install captum
 RUN pip install tensorboard
 RUN pip install pyfits
-RUN pip install torchmetrics
+# RUN pip install torchmetrics
 
 # misc libraries
 RUN pip install glob2
