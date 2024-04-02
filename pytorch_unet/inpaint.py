@@ -81,23 +81,23 @@ def load_masks(filename):
     return data
 
 def load_freeform_masks(op_type):
-    data_dir = Path("data")
+    data_dir = '/home/huzaifa/workspace/Pytorch-UNet/data'
 
-    mask_fn = data_dir / f"imagenet_{op_type}_masks.npz"
-    if not mask_fn.exists():
-        # download orignal npz from palette google drive
-        orig_mask_fn = str(data_dir / "imagenet_freeform_masks.npz")
-        if not os.path.exists(orig_mask_fn):
-            gdown.download(url=FREEFORM_URL, output=orig_mask_fn, quiet=False, fuzzy=True)
-        masks = load_masks(orig_mask_fn)
+    mask_fn = data_dir + f"/imagenet_{op_type}_masks.npz"
+    # if not mask_fn.exists():
+    #     # download orignal npz from palette google drive
+    #     orig_mask_fn = str(data_dir / "imagenet_freeform_masks.npz")
+    #     if not os.path.exists(orig_mask_fn):
+    #         gdown.download(url=FREEFORM_URL, output=orig_mask_fn, quiet=False, fuzzy=True)
+    #     masks = load_masks(orig_mask_fn)
 
-        # store freeform of current ratio for faster loading in future
-        key = {
-            "freeform1020": "10-20% freeform",
-            "freeform2030": "20-30% freeform",
-            "freeform3040": "30-40% freeform",
-        }.get(op_type)
-        np.savez(mask_fn, mask=masks[key])
+    #     # store freeform of current ratio for faster loading in future
+    #     key = {
+    #         "freeform1020": "10-20% freeform",
+    #         "freeform2030": "20-30% freeform",
+    #         "freeform3040": "30-40% freeform",
+    #     }.get(op_type)
+    #     np.savez(mask_fn, mask=masks[key])
 
     # [10000, 256, 256] --> [10000, 1, 256, 256]
     return np.load(mask_fn)["mask"][:,None]
