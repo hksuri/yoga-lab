@@ -72,7 +72,7 @@ class BasicDataset(Dataset):
 
         if (img > 1).any():
             img = img / 255.0 # 0 to 1 range
-            img = img * 2 - 1 # -1 to 1 range
+            # img = img * 2 - 1 # -1 to 1 range
 
         return img
 
