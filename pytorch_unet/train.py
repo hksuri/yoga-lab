@@ -50,16 +50,31 @@ def train_model(
     dataset = BasicDataset(dir_img, freeform_masks)
 
     # 2. Split into train / validation partitions
-    n_val = int(len(dataset) * val_percent)
-    n_train = len(dataset) - n_val
-    train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
+    # n_val = int(len(dataset) * val_percent)
+    # n_train = len(dataset) - n_val
+    # train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
+    total_size = len(dataset)
+    train_percent = 0.70
+    val_percent = 0.15
+    test_percent = 0.15  # Assuming the rest goes to the test
+
+    n_train = int(total_size * train_percent)
+    n_val = int(total_size * val_percent)
+    n_test = total_size - n_train - n_val  # Ensuring we use all data
+
+    # Splitting the dataset
+    train_set, val_set, test_set = random_split(
+        dataset, [n_train, n_val, n_test], generator=torch.Generator().manual_seed(0)
+)
 
     # 3. Create data loaders
     train_loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
     val_loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
+    test_loader_args = dict(batch_size=1, num_workers=os.cpu_count(), pin_memory=True)
 
     train_loader = DataLoader(train_set, shuffle=True, **train_loader_args)
     val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **val_loader_args)
+    test_loader = DataLoader(test_set, shuffle=False, drop_last=False, **test_loader_args)
 
     # (Initialize logging)
     # experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
@@ -181,11 +196,11 @@ def train_model(
     # 7. Save 10 images
     i = 0
     # Load best checkpoint
-    val_loader_args = dict(batch_size=1, num_workers=os.cpu_count(), pin_memory=True)
-    val_loader = DataLoader(val_set, shuffle=True, drop_last=True, **val_loader_args)
+    # val_loader_args = dict(batch_size=1, num_workers=os.cpu_count(), pin_memory=True)
+    # val_loader = DataLoader(val_set, shuffle=True, drop_last=True, **val_loader_args)
     model.load_state_dict(best_checkpoint)
     print(f'\nBest mode loaded with validation loss: {best_val}')
-    for img, mask, img_masked, img_name in val_loader:
+    for img, mask, img_masked, img_name in test_loader:
 
         i += 1
         if i > 10:
@@ -204,7 +219,7 @@ def train_model(
         # img_inpainted = img * (1. - mask) + mask_pred
         img_inpainted = mask_pred
         
-        plot_img_and_mask(image_masked.detach(), img_inpainted.detach(), mask, img_name, dir_output)
+        plot_img_and_mask(img.detach(), image_masked.detach(), img_inpainted.detach(), mask, img_name, dir_output)
 
     # 8. Save training and validation loss
     plot_train_val_loss(train_loss, val_loss, dir_output)
