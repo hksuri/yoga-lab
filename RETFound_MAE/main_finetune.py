@@ -29,7 +29,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 
 import util.lr_decay as lrd
 import util.misc as misc
-from util.datasets import build_dataset, split_folders
+from util.datasets import build_dataset, split_folders, determine_mrn_classes, create_nested_stratified_folds
 from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
@@ -194,7 +194,9 @@ def main(args):
     # best_val_auc_across_all = 0.
     # Create train/val/test MRN list
     # train_val_sets, test_set = split_folders(args.data_path)
-    train_val_sets = split_folders(args.data_path)
+    # train_val_sets = split_folders(args.data_path)
+    mrn_classes = determine_mrn_classes(args.data_path, args.rf)
+    folds_list = create_nested_stratified_folds(mrn_classes)
 
     for fold in range(folds):
 
@@ -210,22 +212,24 @@ def main(args):
 
             if args.eval:
                 # create val_set using all the train_val_sets
-                train_set = [item for sublist in train_val_sets for item in sublist]
+                # train_set = [item for sublist in train_val_sets for item in sublist]
+                train_set = folds_list[fold][0] + folds_list[fold][1] + folds_list[fold][2]
                 print(f'Length of train_set: {len(train_set)}')
                 dataset_train = build_dataset(is_train='val', mrn_list=train_set, args=args)
             
             else:
-                train_set = [set_ for i, set_ in enumerate(train_val_sets) if i != fold]
-                train_set = [item for sublist in train_set for item in sublist]
+                # train_set = [set_ for i, set_ in enumerate(train_val_sets) if i != fold]
+                # train_set = [item for sublist in train_set for item in sublist]
 
-                # Calculate the size of each part to divide the list into 8 equal parts
-                part_size = len(train_set) // 8
-                # Extract the last 1/8th of the list for the validation set
-                val_set = train_set[-part_size:]
-                # Keep the first 7/8th of the list as the training set
-                train_set = train_set[:-part_size]
+                # # Calculate the size of each part to divide the list into 8 equal parts
+                # part_size = len(train_set) // 8
+                # # Extract the last 1/8th of the list for the validation set
+                # val_set = train_set[-part_size:]
+                # # Keep the first 7/8th of the list as the training set
+                # train_set = train_set[:-part_size]
 
-                test_set = train_val_sets[fold]
+                # test_set = train_val_sets[fold]
+                train_set, val_set, test_set = folds_list[fold][0], folds_list[fold][1], folds_list[fold][2]
                 dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
                 dataset_val = build_dataset(is_train='val', mrn_list=val_set, args=args)
                 dataset_test = build_dataset(is_train='test', mrn_list=test_set, args=args)
