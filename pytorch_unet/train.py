@@ -1,32 +1,32 @@
 import argparse
 import logging
-import gc
+# import gc
 import os
-import random
-import sys
+# import random
+# import sys
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
+# import torch.nn.functional as F
+# import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
 from pathlib import Path
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
-import numpy as np
-from PIL import Image
+# import numpy as np
+# from PIL import Image
 
-import wandb
-from evaluate import evaluate
+# import wandb
+# from evaluate import evaluate
 from unet import UNet
 from utils.data_loading import BasicDataset
-from utils.dice_score import dice_loss
+# from utils.dice_score import dice_loss
 from utils.utils import plot_img_and_mask, plot_train_val_loss, apply_random_transformations
 from utils.loss import wssl_loss
 from inpaint import load_freeform_masks, inpaint_freeform
 
-# dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/resized_train_cropped_0_label/'
-dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/test/'
+dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/resized_train_cropped_0_label/'
+# dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/test/'
 # dir_mask = Path('./data/masks/')
 dir_checkpoint = Path('/mnt/ssd_4tb_0/huzaifa/unet/checkpoints/')
 dir_output = '/home/huzaifa/workspace/Pytorch-UNet/output/'
@@ -50,16 +50,31 @@ def train_model(
     dataset = BasicDataset(dir_img, freeform_masks)
 
     # 2. Split into train / validation partitions
-    n_val = int(len(dataset) * val_percent)
-    n_train = len(dataset) - n_val
-    train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
+    # n_val = int(len(dataset) * val_percent)
+    # n_train = len(dataset) - n_val
+    # train_set, val_set = random_split(dataset, [n_train, n_val], generator=torch.Generator().manual_seed(0))
+    total_size = len(dataset)
+    train_percent = 0.70
+    val_percent = 0.15
+    test_percent = 0.15  # Assuming the rest goes to the test
+
+    n_train = int(total_size * train_percent)
+    n_val = int(total_size * val_percent)
+    n_test = total_size - n_train - n_val  # Ensuring we use all data
+
+    # Splitting the dataset
+    train_set, val_set, test_set = random_split(
+        dataset, [n_train, n_val, n_test], generator=torch.Generator().manual_seed(0)
+)
 
     # 3. Create data loaders
     train_loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
     val_loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
+    test_loader_args = dict(batch_size=1, num_workers=os.cpu_count(), pin_memory=True)
 
     train_loader = DataLoader(train_set, shuffle=True, **train_loader_args)
     val_loader = DataLoader(val_set, shuffle=False, drop_last=True, **val_loader_args)
+    test_loader = DataLoader(test_set, shuffle=False, drop_last=False, **test_loader_args)
 
     # (Initialize logging)
     # experiment = wandb.init(project='U-Net', resume='allow', anonymous='must')
@@ -181,11 +196,11 @@ def train_model(
     # 7. Save 10 images
     i = 0
     # Load best checkpoint
-    val_loader_args = dict(batch_size=1, num_workers=os.cpu_count(), pin_memory=True)
-    val_loader = DataLoader(val_set, shuffle=True, drop_last=True, **val_loader_args)
+    # val_loader_args = dict(batch_size=1, num_workers=os.cpu_count(), pin_memory=True)
+    # val_loader = DataLoader(val_set, shuffle=True, drop_last=True, **val_loader_args)
     model.load_state_dict(best_checkpoint)
     print(f'\nBest mode loaded with validation loss: {best_val}')
-    for img, mask, img_masked, img_name in val_loader:
+    for img, mask, img_masked, img_name in test_loader:
 
         i += 1
         if i > 10:
@@ -204,7 +219,7 @@ def train_model(
         # img_inpainted = img * (1. - mask) + mask_pred
         img_inpainted = mask_pred
         
-        plot_img_and_mask(image_masked.detach(), img_inpainted.detach(), mask, img_name, dir_output)
+        plot_img_and_mask(img.detach(), image_masked.detach(), img_inpainted.detach(), mask, img_name, dir_output)
 
     # 8. Save training and validation loss
     plot_train_val_loss(train_loss, val_loss, dir_output)
@@ -251,7 +266,7 @@ def train_model(
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
-    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=1, help='Number of epochs')
+    parser.add_argument('--epochs', '-e', metavar='E', type=int, default=100, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=32, help='Batch size')
     parser.add_argument('--learning-rate', '-l', metavar='LR', type=float, default=1e-4,
                         help='Learning rate', dest='lr')
@@ -268,8 +283,6 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    gc.collect()
-    torch.cuda.empty_cache()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
