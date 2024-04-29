@@ -25,11 +25,14 @@ from utils.utils import plot_img_and_mask, plot_train_val_loss, apply_random_tra
 from utils.loss import wssl_loss
 from inpaint import load_freeform_masks, inpaint_freeform
 
-dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/resized_train_cropped_0_label/'
+# dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/resized_train_cropped_0_label/'
+dir_img = '/research/labs/ophthalmology/iezzi/m294666/unet_files/data'
 # dir_img = '/mnt/ssd_4tb_0/huzaifa/retina_kaggle/resized_train_cropped/label_0/test/'
 # dir_mask = Path('./data/masks/')
-dir_checkpoint = Path('/mnt/ssd_4tb_0/huzaifa/unet/checkpoints/')
-dir_output = '/home/huzaifa/workspace/Pytorch-UNet/output/'
+# dir_checkpoint = Path('/mnt/ssd_4tb_0/huzaifa/unet/checkpoints/')
+dir_checkpoint = Path('/research/labs/ophthalmology/iezzi/m294666/unet_files/checkpoints/')
+# dir_output = '/home/huzaifa/workspace/Pytorch-UNet/output/'
+dir_output = '/research/labs/ophthalmology/iezzi/m294666/unet_files/output/'
 
 def train_model(
         model,
@@ -46,7 +49,7 @@ def train_model(
         gradient_clipping: float = 1.0,
 ):
     # 1. Create dataset
-    freeform_masks = load_freeform_masks('freeform1020')
+    freeform_masks = load_freeform_masks('freeform1020', args.freeform_dir)
     dataset = BasicDataset(dir_img, freeform_masks)
 
     # 2. Split into train / validation partitions
@@ -203,7 +206,7 @@ def train_model(
     for img, mask, img_masked, img_name in test_loader:
 
         i += 1
-        if i > 10:
+        if i > 50:
             break
 
         image_masked = img_masked.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
@@ -277,6 +280,7 @@ def get_args():
     parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=3, help='Number of classes')
+    parser.add_argument('--freeform_dir', type=str, default='/research/labs/ophthalmology/iezzi/m294666/unet_files', help='Path to freeform masks directory')
 
     return parser.parse_args()
 
@@ -285,8 +289,7 @@ if __name__ == '__main__':
     args = get_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device("cuda:1")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
 
     # Change here to adapt to your data
