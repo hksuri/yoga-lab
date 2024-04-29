@@ -338,12 +338,13 @@ def all_reduce_mean(x):
     
 def plot_loss(train_loss, val_loss, fold, args):
     # Plot train and val loss on a single graph with axis labels and legend and save to args.tsk as 'loss_fold.png'
-    plt.figure()
+    plt.figure(figsize=(10, 6))
     plt.plot(train_loss, label='Train Loss')
     plt.plot(val_loss, label='Val Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
+    plt.grid(True)
     plt.savefig(args.task + f'loss_fold_{fold+1}.png') 
     plt.close()  
     
@@ -363,3 +364,11 @@ def save_test_data(img_paths_main, true_labels_list, output_prob_list, embedding
         
         # Write the data
         writer.writerows(data)
+
+# Filter out weights that are only present in the current model's state_dict
+def load_partial_state_dict(model, state_dict):
+    model_state = model.state_dict()
+    filtered_state_dict = {k: v for k, v in state_dict.items() if k in model_state}
+    model_state.update(filtered_state_dict)
+    model.load_state_dict(model_state)
+
