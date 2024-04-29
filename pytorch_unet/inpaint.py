@@ -19,8 +19,8 @@ import numpy as np
 import torch
 
 from pathlib import Path
-import gdown
-from ipdb import set_trace as debug
+# import gdown
+# from ipdb import set_trace as debug
 
 FREEFORM_URL = "https://drive.google.com/file/d/1-5YRGsekjiRKQWqo0BV5RVQu0bagc12w/view?usp=share_link"
 
@@ -80,10 +80,9 @@ def load_masks(filename):
     # data[key] contains [10000, 256, 256] array i.e. 10000 256x256 masks.
     return data
 
-def load_freeform_masks(op_type):
-    data_dir = '/home/huzaifa/workspace/Pytorch-UNet/data'
+def load_freeform_masks(op_type, freeform_dir):
 
-    mask_fn = data_dir + f"/imagenet_{op_type}_masks.npz"
+    mask_fn = freeform_dir + f"/imagenet_{op_type}_masks.npz"
     # if not mask_fn.exists():
     #     # download orignal npz from palette google drive
     #     orig_mask_fn = str(data_dir / "imagenet_freeform_masks.npz")
@@ -110,7 +109,7 @@ def get_center_mask(image_size):
 def build_inpaint_center(opt, log, mask_type):
     assert mask_type == "center"
 
-    log.info(f"[Corrupt] Inpaint: {mask_type=}  ...")
+    # log.info(f"[Corrupt] Inpaint: {mask_type=}  ...")
 
     center_mask = get_center_mask([opt.image_size, opt.image_size])[None,...] # [1,1,256,256]
     center_mask = center_mask.to(opt.device)
