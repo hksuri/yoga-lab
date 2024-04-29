@@ -37,6 +37,9 @@ import models_vit
 
 from engine_finetune import train_one_epoch, evaluate
 
+from get_unet import UnetEncoderHead
+from get_resnet import CustomResNet
+
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE fine-tuning for image classification', add_help=False)
     parser.add_argument('--batch_size', default=16, type=int,
@@ -126,6 +129,10 @@ def get_args_parser():
                         help = 'zoom level')
     parser.add_argument('--save_images', action='store_true', default=False)
     parser.add_argument('--freeze', action='store_true', default=False)
+    parser.add_argument('--unet_checkpoint',
+                        # default='/research/labs/ophthalmology/iezzi/m294666/unet_files/base_model/best_checkpoint_dr.pth', type=str)
+                        default='/research/labs/ophthalmology/iezzi/m294666/unet_files/output/best_checkpoint.pth', type=str)
+    parser.add_argument('--resnet_model_name', default='resnet18', type=str)
 
     # Dataset parameters
     # parser.add_argument('--data_path', default='/home/jupyter/Mor_DR_data/data/data/IDRID/Disease_Grading/', type=str,
@@ -260,13 +267,17 @@ def main(args):
                 prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
                 label_smoothing=args.smoothing, num_classes=args.nb_classes)
         
-        model = models_vit.__dict__[args.model](
-            img_size=args.input_size,
-            num_classes=args.nb_classes,
-            drop_path_rate=args.drop_path,
-            global_pool=args.global_pool,
-        )
-        # os.environ['TORCH_HOME'] = '/research/labs/ophthalmology/iezzi/m294666/base_models'
+        # model = models_vit.__dict__[args.model](
+        #     img_size=args.input_size,
+        #     num_classes=args.nb_classes,
+        #     drop_path_rate=args.drop_path,
+        #     global_pool=args.global_pool,
+        # )
+
+        # model = UnetEncoderHead(args.unet_checkpoint, args, n_channels=3, n_classes=3, output_classes=2)
+
+        os.environ['TORCH_HOME'] = '/research/labs/ophthalmology/iezzi/m294666/base_models'
+        model = CustomResNet(model_name=args.resnet_model_name, num_classes=args.nb_classes)
         # model = models.resnet50(weights = 'DEFAULT')
         # num_features = model.fc.in_features
         # model.fc = nn.Sequential(
@@ -346,20 +357,20 @@ def main(args):
         if args.finetune and not args.eval:
             checkpoint = torch.load(args.finetune, map_location='cpu')
 
-            print("Load pre-trained checkpoint from: %s" % args.finetune)
-            checkpoint_model = checkpoint['model']
-            state_dict = model.state_dict()
-            for k in ['head.weight', 'head.bias']:
-                if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                    print(f"Removing key {k} from pretrained checkpoint")
-                    del checkpoint_model[k]
+            # print("Load pre-trained checkpoint from: %s" % args.finetune)
+            # checkpoint_model = checkpoint['model']
+            # state_dict = model.state_dict()
+            # for k in ['head.weight', 'head.bias']:
+            #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+            #         print(f"Removing key {k} from pretrained checkpoint")
+            #         del checkpoint_model[k]
 
-            # interpolate position embedding
-            interpolate_pos_embed(model, checkpoint_model)
+            # # interpolate position embedding
+            # interpolate_pos_embed(model, checkpoint_model)
 
-            # load pre-trained model
-            msg = model.load_state_dict(checkpoint_model, strict=False)
-            print(msg)
+            # # load pre-trained model
+            # msg = model.load_state_dict(checkpoint_model, strict=False)
+            # print(msg)
 
             # if args.global_pool:
             #     assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
@@ -405,12 +416,13 @@ def main(args):
             model_without_ddp = model.module
 
         # build optimizer with layer-wise lr decay (lrd)
-        param_groups = lrd.param_groups_lrd(model_without_ddp, args.weight_decay,
-            no_weight_decay_list=model_without_ddp.no_weight_decay(),
-            layer_decay=args.layer_decay
-        )
-        optimizer = torch.optim.AdamW(param_groups, lr=args.lr)
-        # optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+        # param_groups = lrd.param_groups_lrd(model_without_ddp, args.weight_decay,
+        #     no_weight_decay_list=model_without_ddp.no_weight_decay(),
+        #     layer_decay=args.layer_decay
+        # )
+        # optimizer = torch.optim.AdamW(param_groups, lr=args.lr)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)
         loss_scaler = NativeScaler()
 
         if mixup_fn is not None:
@@ -453,7 +465,8 @@ def main(args):
 
             # Validation
             _,_,_,_,_,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=False)
-        
+            scheduler.step(val_auc_roc)
+
             # Save train and val loss
             train_loss.append(train_stats['loss'])
             val_loss.append(val_stats['loss'])
