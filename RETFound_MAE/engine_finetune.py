@@ -226,7 +226,7 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 
                 img_tensor = images[i:i+1]
                 # print(f'img_tensor size: {img_tensor.size()}')
-                mask = grad_rollout(img_tensor,1)
+                # mask = grad_rollout(img_tensor,1)
                 # transformer_attribution = attribution_generator.generate_LRP(img_tensor, method="transformer_attribution", index=1).detach()
                 # transformer_attribution = transformer_attribution.reshape(1, 1, 14, 14)
                 # transformer_attribution = torch.nn.functional.interpolate(transformer_attribution, scale_factor=16, mode='bilinear')
@@ -234,6 +234,7 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 # mask = (transformer_attribution - transformer_attribution.min()) / (transformer_attribution.max() - transformer_attribution.min())
                 # print(f'mask size: {mask.shape}')
                 np_img = np.array(img_original)[:, :, ::-1]
+                mask = np.zeros_like(np_img)
                 mask = cv2.resize(mask, (np_img.shape[1], np_img.shape[0]))
 
                 # print(f'image original max, mean, min: {np_img.max()}, {np_img.mean()}, {np_img.min()}')
