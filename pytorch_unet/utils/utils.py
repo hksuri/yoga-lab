@@ -31,7 +31,7 @@ def plot_train_val_loss(train_loss, val_loss, save_dir):
 
 def plot_img_and_mask(img_org, img_in, img_out, mask, img_name, dir_output, mode = 'inpainted image'):
 
-    file_path = dir_output + str(img_name).strip("[]'").split('.')[0] + ".png"
+    file_path = dir_output + str(img_name).strip("[]'").replace('.jpg', '.png')
     
     # Normalizing and converting original image
     img = img_org
