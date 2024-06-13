@@ -13,6 +13,8 @@ from PIL import Image
 import random
 from random import shuffle
 from sklearn.model_selection import StratifiedKFold
+import Counter
+import torch
 
 def extract_class_from_image_name(image_name, rf):
     rf_type = {'dia5':-6, 'intref':-5, 'orange':-4, 'va':-3, 'thick2':-2, 'srf':-1}
@@ -52,6 +54,23 @@ def create_nested_stratified_folds(mrn_classes, outer_splits=5, inner_split_rati
         folds.append([train_mrns.tolist(), val_mrns.tolist(), test_mrns.tolist()])
         
     return folds
+
+def calculate_weights(mrn_classes):
+    # Counting the occurrences of each class
+    class_counts = Counter(mrn_classes.values())
+
+    # Calculate the total number of entries
+    total_entries = sum(class_counts.values())
+
+    # Determining weights inversely proportional to the frequency of each class
+    weights = {
+        class_label: total_entries / (class_count * len(class_counts))
+        for class_label, class_count in class_counts.items()
+    }
+
+    # Converting weights to a tensor
+    weight_tensor = torch.tensor([weights[i] for i in sorted(weights.keys())], dtype=torch.float)
+    return weight_tensor
 
 # def build_dataset(is_train, mrn_list, args):
     
@@ -229,8 +248,12 @@ class CustomDataset(Dataset):
         self.rf = self.rf_type[rf]
         self.transform = transform
         self.data = self.load_data()
-        if is_train=='train':
-            self.data = self.oversample_data()
+        # if is_train=='train':
+        #     self.data = self.oversample_data()
+        class_counts = {0: 0, 1: 0}
+        for _, label in self.data:
+            class_counts[label] += 1
+        print(f"Class counts: {class_counts}")
 
     def load_data(self):
         data = []
