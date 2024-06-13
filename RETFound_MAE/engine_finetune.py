@@ -144,7 +144,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 # @torch.no_grad()
-def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_images):
+def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save_images):
     print(f'Mode: {mode}')
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -157,17 +157,18 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
     ############################################################
     
     # Create new folder named test_images in task. Delete if exists already
+    folder_name = f'test_images_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
     if save_images:
     
-        if not os.path.exists(task+'test_images'):
-            os.makedirs(task+'test_images')
-        else:
-            os.system('rm -r '+task+'test_images')
-            os.makedirs(task+'test_images')
+        if not os.path.exists(task+folder_name):
+            os.makedirs(task+folder_name)
+        # else:
+            # os.system('rm -r '+task+folder_name)
+            # os.makedirs(task+folder_name)
 
         # Define the VITAttentionGradRollout object
-        # grad_rollout = VITAttentionRollout(model, discard_ratio=0.2, head_fusion='max')
-        grad_rollout = VITAttentionGradRollout(model, discard_ratio=0.9)
+        grad_rollout = VITAttentionRollout(model, discard_ratio=args.discard_ratio, head_fusion=args.head_fusion)
+        # grad_rollout = VITAttentionGradRollout(model, discard_ratio=args.discard_ratio)
         # attribution_generator = LRP(model)
 
     ############################################################
@@ -227,6 +228,7 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 img_tensor = images[i:i+1]
                 # print(f'img_tensor size: {img_tensor.size()}')
                 # mask = grad_rollout(img_tensor,1)
+                mask = grad_rollout(img_tensor)
                 # transformer_attribution = attribution_generator.generate_LRP(img_tensor, method="transformer_attribution", index=1).detach()
                 # transformer_attribution = transformer_attribution.reshape(1, 1, 14, 14)
                 # transformer_attribution = torch.nn.functional.interpolate(transformer_attribution, scale_factor=16, mode='bilinear')
@@ -234,7 +236,7 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 # mask = (transformer_attribution - transformer_attribution.min()) / (transformer_attribution.max() - transformer_attribution.min())
                 # print(f'mask size: {mask.shape}')
                 np_img = np.array(img_original)[:, :, ::-1]
-                mask = np.zeros_like(np_img)
+                # mask = np.zeros_like(np_img)
                 mask = cv2.resize(mask, (np_img.shape[1], np_img.shape[0]))
 
                 # print(f'image original max, mean, min: {np_img.max()}, {np_img.mean()}, {np_img.min()}')
@@ -249,14 +251,14 @@ def evaluate(data_loader, model, device, task, epoch, mode, num_class,save_image
                 cam = cam / np.max(cam)
                 cam = cv2.hconcat([img, cam])
                 cam = np.uint8(255 * cam)
-                cv2.putText(cam, f'GT: {gt}', (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
-                cv2.putText(cam, f'Pred: {pred}', (20, 320), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
-                cv2.putText(cam, f'Prob: {prob}', (20, 490), cv2.FONT_HERSHEY_SIMPLEX, 5, (255, 255, 255), 5, cv2.LINE_AA)
+                cv2.putText(cam, f'GT: {gt}', (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
+                cv2.putText(cam, f'Pred: {pred}', (20, 250), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
+                cv2.putText(cam, f'Prob: {prob}', (20, 350), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
                 
                 # print(f'cam max, mean, min: {cam.max()}, {cam.mean()}, {cam.min()}')
                 
                 # Save img_original on the left and cam on the right
-                cv2.imwrite(task+'test_images/'+str(path).split('/')[-1].split('.')[0]+'_mask.jpg', cam)
+                cv2.imwrite(task+folder_name+'/'+str(path).split('/')[-1].split('.')[0]+'_pred.jpg', cam)
 
         acc1,_ = accuracy(output, target, topk=(1,2))
 
