@@ -2,20 +2,20 @@ import cv2
 import numpy as np
 import torch
 
-from pytorch_grad_cam.pytorch_grad_cam import GradCAM, \
-    ScoreCAM, \
-    GradCAMPlusPlus, \
-    AblationCAM, \
-    XGradCAM, \
-    EigenCAM, \
-    EigenGradCAM, \
-    LayerCAM, \
-    FullGrad
+from pytorch_grad_cam.pytorch_grad_cam import GradCAM
+    # ScoreCAM, \
+    # GradCAMPlusPlus, \
+    # AblationCAM, \
+    # XGradCAM, \
+    # EigenCAM, \
+    # EigenGradCAM, \
+    # LayerCAM, \
+    # FullGrad
 
 from pytorch_grad_cam.pytorch_grad_cam import GuidedBackpropReLUModel
 from pytorch_grad_cam.pytorch_grad_cam.utils.image import show_cam_on_image, \
     preprocess_image
-from pytorch_grad_cam.pytorch_grad_cam.ablation_layer import AblationLayerVit
+# from pytorch_grad_cam.pytorch_grad_cam.ablation_layer import AblationLayerVit
 
 
 def reshape_transform(tensor, height=14, width=14):
@@ -31,15 +31,15 @@ def reshape_transform(tensor, height=14, width=14):
 def run_cam(model, image_path, args, method='gradcam'):
     
     methods = \
-        {"gradcam": GradCAM,
-         "scorecam": ScoreCAM,
-         "gradcam++": GradCAMPlusPlus,
-         "ablationcam": AblationCAM,
-         "xgradcam": XGradCAM,
-         "eigencam": EigenCAM,
-         "eigengradcam": EigenGradCAM,
-         "layercam": LayerCAM,
-         "fullgrad": FullGrad}
+        {"gradcam": GradCAM}
+        #  "scorecam": ScoreCAM,
+        #  "gradcam++": GradCAMPlusPlus,
+        #  "ablationcam": AblationCAM,
+        #  "xgradcam": XGradCAM,
+        #  "eigencam": EigenCAM,
+        #  "eigengradcam": EigenGradCAM,
+        #  "layercam": LayerCAM,
+        #  "fullgrad": FullGrad}
 
     if method not in list(methods.keys()):
         raise Exception(f"method should be one of {list(methods.keys())}")
@@ -51,22 +51,22 @@ def run_cam(model, image_path, args, method='gradcam'):
     else:
         use_cuda = False
 
-    target_layers = [model.blocks[-1].norm1]
+    target_layers = [model.blocks[-1].norm2]
 
     if method not in methods:
         raise Exception(f"Method {method} not implemented")
 
-    if method == "ablationcam":
-        cam = methods[method](model=model,
-                                   target_layers=target_layers,
-                                   use_cuda=use_cuda,
-                                   reshape_transform=reshape_transform,
-                                   ablation_layer=AblationLayerVit())
-    else:
-        cam = methods[method](model=model,
-                                   target_layers=target_layers,
-                                   use_cuda=use_cuda,
-                                   reshape_transform=reshape_transform)
+    # if method == "ablationcam":
+    #     cam = methods[method](model=model,
+    #                                target_layers=target_layers,
+    #                                use_cuda=use_cuda,
+    #                                reshape_transform=reshape_transform,
+    #                                ablation_layer=AblationLayerVit())
+    # else:
+    cam = methods[method](model=model,
+                                target_layers=target_layers,
+                                # use_cuda=use_cuda,
+                                reshape_transform=reshape_transform)
 
     rgb_img = cv2.imread(image_path, 1)[:, :, ::-1]
     rgb_img = cv2.resize(rgb_img, (224, 224))
@@ -84,8 +84,8 @@ def run_cam(model, image_path, args, method='gradcam'):
 
     grayscale_cam = cam(input_tensor=input_tensor,
                         targets=targets,
-                        eigen_smooth=args.eigen_smooth,
-                        aug_smooth=args.aug_smooth)
+                        eigen_smooth=True,
+                        aug_smooth=True)
 
     # Here grayscale_cam has only one image in the batch
     grayscale_cam = grayscale_cam[0, :]
