@@ -97,8 +97,10 @@ def split_folders(directory_path):
     return train_val_sets
 
 def build_transform(is_train, args):
-    mean = IMAGENET_DEFAULT_MEAN
-    std = IMAGENET_DEFAULT_STD
+    # mean = IMAGENET_DEFAULT_MEAN
+    # std = IMAGENET_DEFAULT_STD
+    mean = [0.318, 0.154,0.073]
+    std = [0.146,0.081,0.057]
     # train transform
     if is_train=='train':
         # this should always dispatch to transforms_imagenet_train
@@ -165,6 +167,25 @@ def build_transform(is_train, args):
 
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(mean, std))
+
+    # # List of additional transforms
+    # additional_transforms = [
+    #     transforms.RandomHorizontalFlip(p=1.0),
+    #     transforms.RandomVerticalFlip(p=1.0),
+    #     transforms.RandomRotation(degrees=90),
+    #     transforms.RandomAffine(degrees=0, shear=20),
+    #     transforms.RandomAdjustSharpness(sharpness_factor=2, p=1.0),
+    #     transforms.ColorJitter(contrast=0.5),
+    # ]
+    
+    # # Compute the probability for each random transform
+    # N = len(additional_transforms)
+    # prob = 1.0 / N
+    
+    # # Append each transform with the computed probability
+    # for transform in additional_transforms:
+    #     t.append(transforms.RandomApply([transform], p=prob))
+
     return transforms.Compose(t)
 
 # class CustomDataset(Dataset):
