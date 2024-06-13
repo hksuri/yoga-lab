@@ -342,7 +342,8 @@ def plot_loss(train_loss, val_loss, fold, args):
     today = datetime.date.today()
     today = today.strftime('%Y%m%d')
     
-    folder_name = f'loss_{today}_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
+    # folder_name = f'loss_{today}_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
+    folder_name = f'loss_{today}_epochs{args.epochs}'
 
     # Create folder if it does not exist
     if not os.path.exists(args.task+folder_name):
