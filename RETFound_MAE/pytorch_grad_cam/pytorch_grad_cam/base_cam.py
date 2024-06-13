@@ -4,10 +4,10 @@ import numpy as np
 import torch
 import ttach as tta
 
-from pytorch_grad_cam.activations_and_gradients import ActivationsAndGradients
-from pytorch_grad_cam.utils.image import scale_cam_image
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-from pytorch_grad_cam.utils.svd_on_activations import get_2d_projection
+from .activations_and_gradients import ActivationsAndGradients
+from .utils.image import scale_cam_image
+from .utils.model_targets import ClassifierOutputTarget
+from .utils.svd_on_activations import get_2d_projection
 
 
 class BaseCAM:
