@@ -10,6 +10,7 @@ import torch.nn as nn
 
 import timm.models.vision_transformer
 
+from dino_head import DINOHead
 
 class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     """ Vision Transformer with support for global average pooling
@@ -27,12 +28,13 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
 
         ############################################################
         del self.head
-        self.head1 = nn.Linear(self.embed_dim, 64)
-        self.head2 = nn.Linear(64, 2)
-        self.fc_norm2 = norm_layer(64)
-        self.gelu_head = nn.GELU()
-        self.dropout1 = nn.Dropout(p=0.3)
-        self.dropout2 = nn.Dropout(p=0.3)
+        # self.head1 = nn.Linear(self.embed_dim, 64)
+        # self.head2 = nn.Linear(64, 2)
+        # self.fc_norm2 = norm_layer(64)
+        # self.gelu_head = nn.GELU()
+        # self.dropout1 = nn.Dropout(p=0.2)
+        # self.dropout2 = nn.Dropout(p=0.2)
+        self.head = DINOHead(in_dim=self.embed_dim, out_dim=2, use_bn=True, nlayers=3, hidden_dim=1024, bottleneck_dim=256)
         ############################################################
 
     def forward_features(self, x):
@@ -59,11 +61,12 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
     def forward(self, x):
         emb,x = self.forward_features(x)
         ############################################################
-        x = self.dropout1(x)
-        x = self.gelu_head(self.head1(x))
-        x = self.fc_norm2(x)
-        x = self.dropout2(x)
-        x = self.head2(x)
+        # x = self.dropout1(x)
+        # x = self.gelu_head(self.head1(x))
+        # x = self.fc_norm2(x)
+        # x = self.dropout2(x)
+        # x = self.head2(x)
+        x = self.head(x)
         ############################################################
         # x = self.head(x)
         return emb,x
