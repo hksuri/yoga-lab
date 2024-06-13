@@ -27,6 +27,7 @@ from vit_rollout import VITAttentionRollout
 from vit_grad_rollout import VITAttentionGradRollout
 from vit_explain import LRP
 
+from gradcam import run_cam
 
 def misc_measures(confusion_matrix):
     
@@ -167,7 +168,7 @@ def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save
             # os.makedirs(task+folder_name)
 
         # Define the VITAttentionGradRollout object
-        grad_rollout = VITAttentionRollout(model, discard_ratio=args.discard_ratio, head_fusion=args.head_fusion)
+        # grad_rollout = VITAttentionRollout(model, discard_ratio=args.discard_ratio, head_fusion=args.head_fusion)
         # grad_rollout = VITAttentionGradRollout(model, discard_ratio=args.discard_ratio)
         # attribution_generator = LRP(model)
 
@@ -225,32 +226,38 @@ def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save
                 img_original = Image.open(path)
                 # img_original = img_original.resize((224, 224))
                 
-                img_tensor = images[i:i+1]
+                # img_tensor = images[i:i+1]
                 # print(f'img_tensor size: {img_tensor.size()}')
                 # mask = grad_rollout(img_tensor,1)
-                mask = grad_rollout(img_tensor)
+                # mask = grad_rollout(img_tensor)
                 # transformer_attribution = attribution_generator.generate_LRP(img_tensor, method="transformer_attribution", index=1).detach()
                 # transformer_attribution = transformer_attribution.reshape(1, 1, 14, 14)
                 # transformer_attribution = torch.nn.functional.interpolate(transformer_attribution, scale_factor=16, mode='bilinear')
                 # transformer_attribution = transformer_attribution.reshape(224, 224).data.cpu().numpy()
                 # mask = (transformer_attribution - transformer_attribution.min()) / (transformer_attribution.max() - transformer_attribution.min())
                 # print(f'mask size: {mask.shape}')
+
+                # Resize img_original to 224 x 224
+                img_original = img_original.resize((224, 224))
+                
                 np_img = np.array(img_original)[:, :, ::-1]
                 # mask = np.zeros_like(np_img)
-                mask = cv2.resize(mask, (np_img.shape[1], np_img.shape[0]))
+                # mask = cv2.resize(mask, (np_img.shape[1], np_img.shape[0]))
 
                 # print(f'image original max, mean, min: {np_img.max()}, {np_img.mean()}, {np_img.min()}')
 
                 img = np.float32(np_img) / 255
-                heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
-                heatmap = np.float32(heatmap) / 255
+                # heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
+                # heatmap = np.float32(heatmap) / 255
 
                 # print(f'heatmap max, mean, min: {heatmap.max()}, {heatmap.mean()}, {heatmap.min()}')
 
-                cam = heatmap + np.float32(img)
-                cam = cam / np.max(cam)
+                # cam = heatmap + np.float32(img)
+                # cam = cam / np.max(cam)
+                cam = run_cam(model, path, args, method='gradcam')
+                img = np.uint8(255 * img)
                 cam = cv2.hconcat([img, cam])
-                cam = np.uint8(255 * cam)
+                # cam = np.uint8(255 * cam)
                 cv2.putText(cam, f'GT: {gt}', (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
                 cv2.putText(cam, f'Pred: {pred}', (20, 250), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
                 cv2.putText(cam, f'Prob: {prob}', (20, 350), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
