@@ -20,6 +20,7 @@ from pycm import *
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
+import datetime
 
 from PIL import Image
 
@@ -158,7 +159,13 @@ def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save
     ############################################################
     
     # Create new folder named test_images in task. Delete if exists already
-    folder_name = f'test_images_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
+
+    # Get today's year month day
+    today = datetime.today()
+    today = today.strftime("%Y%m%d")
+
+    # folder_name = f'test_images_{today}_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
+    folder_name = f'test_images_{today}_epochs{args.epochs}_gradcam'
     if save_images:
     
         if not os.path.exists(task+folder_name):
@@ -258,9 +265,9 @@ def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save
                 img = np.uint8(255 * img)
                 cam = cv2.hconcat([img, cam])
                 # cam = np.uint8(255 * cam)
-                cv2.putText(cam, f'GT: {gt}', (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
-                cv2.putText(cam, f'Pred: {pred}', (20, 250), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
-                cv2.putText(cam, f'Prob: {prob}', (20, 350), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 3, cv2.LINE_AA)
+                cv2.putText(cam, f'GT: {gt}', (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(cam, f'Pred: {pred}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(cam, f'Prob: {prob}', (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1, cv2.LINE_AA)
                 
                 # print(f'cam max, mean, min: {cam.max()}, {cam.mean()}, {cam.min()}')
                 
