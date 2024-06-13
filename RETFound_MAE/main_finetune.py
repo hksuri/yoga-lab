@@ -171,6 +171,10 @@ def get_args_parser():
     parser.add_argument('--dist_on_itp', default=False, action='store_true')
     parser.add_argument('--dist_url', default='env://',
                         help='url used to set up distributed training')
+    
+    # attention rollout parameters
+    parser.add_argument('--discard_ratio', type=float, default=0.2)
+    parser.add_argument('--head_fusion', type=str, default='max')
 
     return parser
 
@@ -267,17 +271,17 @@ def main(args):
                 prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
                 label_smoothing=args.smoothing, num_classes=args.nb_classes)
         
-        # model = models_vit.__dict__[args.model](
-        #     img_size=args.input_size,
-        #     num_classes=args.nb_classes,
-        #     drop_path_rate=args.drop_path,
-        #     global_pool=args.global_pool,
-        # )
+        model = models_vit.__dict__[args.model](
+            img_size=args.input_size,
+            num_classes=args.nb_classes,
+            drop_path_rate=args.drop_path,
+            global_pool=args.global_pool,
+        )
 
         # model = UnetEncoderHead(args.unet_checkpoint, args, n_channels=3, n_classes=3, output_classes=2)
 
-        os.environ['TORCH_HOME'] = '/research/labs/ophthalmology/iezzi/m294666/base_models'
-        model = CustomResNet(model_name=args.resnet_model_name, num_classes=args.nb_classes)
+        # os.environ['TORCH_HOME'] = '/research/labs/ophthalmology/iezzi/m294666/base_models'
+        # model = CustomResNet(model_name=args.resnet_model_name, num_classes=args.nb_classes)
         # model = models.resnet50(weights = 'DEFAULT')
         # num_features = model.fc.in_features
         # model.fc = nn.Sequential(
@@ -357,27 +361,27 @@ def main(args):
         if args.finetune and not args.eval:
             checkpoint = torch.load(args.finetune, map_location='cpu')
 
-            # print("Load pre-trained checkpoint from: %s" % args.finetune)
-            # checkpoint_model = checkpoint['model']
-            # state_dict = model.state_dict()
-            # for k in ['head.weight', 'head.bias']:
-            #     if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-            #         print(f"Removing key {k} from pretrained checkpoint")
-            #         del checkpoint_model[k]
+            print("Load pre-trained checkpoint from: %s" % args.finetune)
+            checkpoint_model = checkpoint['model']
+            state_dict = model.state_dict()
+            for k in ['head.weight', 'head.bias']:
+                if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+                    print(f"Removing key {k} from pretrained checkpoint")
+                    del checkpoint_model[k]
 
-            # # interpolate position embedding
-            # interpolate_pos_embed(model, checkpoint_model)
+            # interpolate position embedding
+            interpolate_pos_embed(model, checkpoint_model)
 
-            # # load pre-trained model
-            # msg = model.load_state_dict(checkpoint_model, strict=False)
-            # print(msg)
+            # load pre-trained model
+            msg = model.load_state_dict(checkpoint_model, strict=False)
+            print(msg)
 
             # if args.global_pool:
             #     assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
             # else:
             #     assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
 
-            # manually initialize fc layer
+            # # manually initialize fc layer
             # trunc_normal_(model.head.weight, std=2e-5)
 
         # Freeze every layer except the head
@@ -416,13 +420,13 @@ def main(args):
             model_without_ddp = model.module
 
         # build optimizer with layer-wise lr decay (lrd)
-        # param_groups = lrd.param_groups_lrd(model_without_ddp, args.weight_decay,
-        #     no_weight_decay_list=model_without_ddp.no_weight_decay(),
-        #     layer_decay=args.layer_decay
-        # )
-        # optimizer = torch.optim.AdamW(param_groups, lr=args.lr)
-        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)
+        param_groups = lrd.param_groups_lrd(model_without_ddp, args.weight_decay,
+            no_weight_decay_list=model_without_ddp.no_weight_decay(),
+            layer_decay=args.layer_decay
+        )
+        optimizer = torch.optim.AdamW(param_groups, lr=args.lr)
+        # optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)
         loss_scaler = NativeScaler()
 
         if mixup_fn is not None:
@@ -439,7 +443,7 @@ def main(args):
 
         if args.eval:
             print(f"Start evaluation:\n")
-            gt,_,pred,_,_,test_stats,auc_roc = evaluate(data_loader_train, model, device, args.task, epoch=0, mode='test',num_class=args.nb_classes, save_images=args.save_images)
+            gt,_,pred,_,_,test_stats,auc_roc = evaluate(args, data_loader_train, model, device, args.task, epoch=0, mode='test',num_class=args.nb_classes, save_images=args.save_images)
             auc_roc_all = roc_auc_score(gt, pred,multi_class='ovr',average='macro')
             print(f'\n\nAverage validation AUROC for all images: {auc_roc_all}\n')
             exit(0)
@@ -464,8 +468,8 @@ def main(args):
             )
 
             # Validation
-            _,_,_,_,_,val_stats,val_auc_roc = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=False)
-            scheduler.step(val_auc_roc)
+            _,_,_,_,_,val_stats,val_auc_roc = evaluate(args, data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=False)
+            # scheduler.step(val_auc_roc)
 
             # Save train and val loss
             train_loss.append(train_stats['loss'])
@@ -489,7 +493,7 @@ def main(args):
                 model_without_ddp.load_state_dict(checkpoint['model'])
                 # misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
 
-                gt,out_prob,pred,img_paths,embeddings,_,test_auc_roc = evaluate(data_loader_test, model, device,args.task,epoch, mode='test',num_class=args.nb_classes, save_images=args.save_images)
+                gt,out_prob,pred,img_paths,embeddings,_,test_auc_roc = evaluate(args, data_loader_test, model, device,args.task,epoch, mode='test',num_class=args.nb_classes, save_images=args.save_images)
                 
                 true_labels_list.extend(gt)
                 output_prob_list.extend(out_prob)
@@ -498,7 +502,7 @@ def main(args):
                 embeddings_lists_main.extend(embedding_lists)
                 img_paths_main.extend(img_paths)
 
-                    # _,_,_,_,_,_,_ = evaluate(data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=args.save_images)
+                    # _,_,_,_,_,_,_ = evaluate(args, data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=args.save_images)
             # else:
             #     misc.save_model(
             #         args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
