@@ -337,6 +337,17 @@ def all_reduce_mean(x):
         return x
     
 def plot_loss(train_loss, val_loss, fold, args):
+
+    # Get today's year, month, day
+    today = datetime.date.today()
+    today = today.strftime('%Y%m%d')
+    
+    folder_name = f'loss_{today}_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
+
+    # Create folder if it does not exist
+    if not os.path.exists(args.task+folder_name):
+        os.makedirs(args.task+folder_name)
+
     # Plot train and val loss on a single graph with axis labels and legend and save to args.tsk as 'loss_fold.png'
     plt.figure(figsize=(10, 6))
     plt.plot(train_loss, label='Train Loss')
@@ -345,7 +356,7 @@ def plot_loss(train_loss, val_loss, fold, args):
     plt.ylabel('Loss')
     plt.legend()
     plt.grid(True)
-    plt.savefig(args.task + f'loss_fold_{fold+1}.png') 
+    plt.savefig(args.task + folder_name + f'/loss_fold_{fold+1}.png') 
     plt.close()  
     
 def save_test_data(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main, args):
