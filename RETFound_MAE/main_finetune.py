@@ -29,7 +29,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 
 import util.lr_decay as lrd
 import util.misc as misc
-from util.datasets import build_dataset, split_folders, determine_mrn_classes, create_nested_stratified_folds
+from util.datasets import build_dataset, split_folders, determine_mrn_classes, create_nested_stratified_folds, calculate_weights
 from util.pos_embed import interpolate_pos_embed
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 
@@ -208,6 +208,9 @@ def main(args):
     # train_val_sets = split_folders(args.data_path)
     mrn_classes = determine_mrn_classes(args.data_path, args.rf)
     folds_list = create_nested_stratified_folds(mrn_classes)
+    loss_weights = calculate_weights(mrn_classes).to(device)
+
+    print(f'Weights based on class distribution: {loss_weights}')
 
     for fold in range(folds):
 
@@ -251,8 +254,8 @@ def main(args):
 
             print(f'\n\n######## Final Training #############\n')
 
-            train_set = [item for sublist in train_val_sets for item in sublist]
-            dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
+            # train_set = [item for sublist in train_val_sets for item in sublist]
+            # dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
 
         # dataset_test = build_dataset(is_train='test', mrn_list=test_set, args=args)
 
@@ -433,9 +436,9 @@ def main(args):
             # smoothing is handled with mixup label transform
             criterion = SoftTargetCrossEntropy()
         elif args.smoothing > 0.:
-            criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
-        else:
-            criterion = torch.nn.CrossEntropyLoss()
+        #     criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
+        # else:
+            criterion = torch.nn.CrossEntropyLoss(weight=loss_weights, label_smoothing=args.smoothing)
 
         print("criterion = %s" % str(criterion))
 
