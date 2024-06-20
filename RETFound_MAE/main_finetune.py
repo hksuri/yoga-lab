@@ -151,6 +151,7 @@ def get_args_parser():
     parser.add_argument('--seed', default=0, type=int)
     parser.add_argument('--resume', default='',
                         help='resume from checkpoint')
+    parser.add_argument('--run_date', default='',help='date of the run')
 
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
@@ -176,6 +177,9 @@ def get_args_parser():
     parser.add_argument('--discard_ratio', type=float, default=0.2)
     parser.add_argument('--head_fusion', type=str, default='max')
 
+    parser.add_argument('--folds', type=int, default=5)
+    parser.add_argument('--train_all', action='store_true', default=False)
+
     return parser
 
 
@@ -194,6 +198,8 @@ def main(args):
 
     cudnn.benchmark = True
 
+    args.run_date = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+
     test_aurocs = 0.
     true_labels_list = []
     output_prob_list = []
@@ -201,18 +207,19 @@ def main(args):
     embeddings_lists_main = []
     img_paths_main = []
 
-    folds = 5
     # best_val_auc_across_all = 0.
     # Create train/val/test MRN list
     # train_val_sets, test_set = split_folders(args.data_path)
     # train_val_sets = split_folders(args.data_path)
     mrn_classes = determine_mrn_classes(args.data_path, args.rf)
-    folds_list = create_nested_stratified_folds(mrn_classes)
+    folds_list = create_nested_stratified_folds(mrn_classes, outer_splits=args.folds)
     loss_weights = calculate_weights(mrn_classes).to(device)
 
     print(f'Weights based on class distribution: {loss_weights}')
 
-    for fold in range(folds):
+    start_time = time.time()
+
+    for fold in range(args.folds):
 
         # if fold == folds: val = 0
         # else: val = 1
@@ -243,12 +250,18 @@ def main(args):
                 # train_set = train_set[:-part_size]
 
                 # test_set = train_val_sets[fold]
-                train_set, val_set, test_set = folds_list[fold][0], folds_list[fold][1], folds_list[fold][2]
-                dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
-                dataset_val = build_dataset(is_train='val', mrn_list=val_set, args=args)
-                dataset_test = build_dataset(is_train='test', mrn_list=test_set, args=args)
 
-                print(f'Train set size: {len(train_set)}, val set size: {len(val_set)}, test set size: {len(test_set)}\n')
+                if args.train_all:
+                    train_set, val_set = folds_list[0], folds_list[1]
+                    dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
+                    dataset_val = build_dataset(is_train='val', mrn_list=val_set, args=args)
+                    print(f'Train set size: {len(train_set)}, val set size: {len(val_set)}\n')
+                else:
+                    train_set, val_set, test_set = folds_list[fold][0], folds_list[fold][1], folds_list[fold][2]
+                    dataset_train = build_dataset(is_train='train', mrn_list=train_set, args=args)
+                    dataset_val = build_dataset(is_train='val', mrn_list=val_set, args=args)
+                    dataset_test = build_dataset(is_train='test', mrn_list=test_set, args=args)
+                    print(f'Train set size: {len(train_set)}, val set size: {len(val_set)}, test set size: {len(test_set)}\n')
 
         else:
 
@@ -353,13 +366,14 @@ def main(args):
                 drop_last=False
             )
 
-            data_loader_test = torch.utils.data.DataLoader(
-                dataset_test,
-                batch_size=args.batch_size,
-                num_workers=args.num_workers,
-                pin_memory=args.pin_mem,
-                drop_last=False
-            )
+            if not args.train_all:
+                data_loader_test = torch.utils.data.DataLoader(
+                    dataset_test,
+                    batch_size=args.batch_size,
+                    num_workers=args.num_workers,
+                    pin_memory=args.pin_mem,
+                    drop_last=False
+                )
 
         if args.finetune and not args.eval:
             checkpoint = torch.load(args.finetune, map_location='cpu')
@@ -436,9 +450,9 @@ def main(args):
             # smoothing is handled with mixup label transform
             criterion = SoftTargetCrossEntropy()
         elif args.smoothing > 0.:
-        #     criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
+            criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
         # else:
-            criterion = torch.nn.CrossEntropyLoss(weight=loss_weights, label_smoothing=args.smoothing)
+            # criterion = torch.nn.CrossEntropyLoss(weight=loss_weights, label_smoothing=args.smoothing)
 
         print("criterion = %s" % str(criterion))
 
@@ -446,13 +460,12 @@ def main(args):
 
         if args.eval:
             print(f"Start evaluation:\n")
-            gt,_,pred,_,_,test_stats,auc_roc = evaluate(args, data_loader_train, model, device, args.task, epoch=0, mode='test',num_class=args.nb_classes, save_images=args.save_images)
+            gt,_,pred,_,_,test_stats,auc_roc = evaluate(args, fold, data_loader_train, model, device, args.task, epoch=0, mode='test',num_class=args.nb_classes, save_images=args.save_images)
             auc_roc_all = roc_auc_score(gt, pred,multi_class='ovr',average='macro')
             print(f'\n\nAverage validation AUROC for all images: {auc_roc_all}\n')
             exit(0)
 
         print(f"Start training for {args.epochs} epochs")
-        start_time = time.time()
         max_auc = 0.0
         train_loss = []
         val_loss = []
@@ -471,7 +484,7 @@ def main(args):
             )
 
             # Validation
-            _,_,_,_,_,val_stats,val_auc_roc = evaluate(args, data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=False)
+            _,_,_,_,_,val_stats,val_auc_roc = evaluate(args, fold, data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=False)
             # scheduler.step(val_auc_roc)
 
             # Save train and val loss
@@ -487,16 +500,17 @@ def main(args):
                 print('*** Best model found. Validation AUROC: %.4f ***' % val_auc_roc)
             
             # Test
-            if epoch==(args.epochs-1) and val:
+            if epoch==(args.epochs-1) and val and not args.train_all:
 
                 print('*** Testing best validation model on test set ***')
 
                 # Load best model
-                checkpoint = torch.load(args.task + 'checkpoint-best.pth', map_location='cpu')
+                folder_name = folder_name = f'checkpoint_{args.run_date}_epochs{args.epochs}' 
+                checkpoint = torch.load(args.task + folder_name + '/checkpoint-best.pth', map_location='cpu')
                 model_without_ddp.load_state_dict(checkpoint['model'])
                 # misc.load_model(args=args, model_without_ddp=model_without_ddp, optimizer=optimizer, loss_scaler=loss_scaler)
 
-                gt,out_prob,pred,img_paths,embeddings,_,test_auc_roc = evaluate(args, data_loader_test, model, device,args.task,epoch, mode='test',num_class=args.nb_classes, save_images=args.save_images)
+                gt,out_prob,pred,img_paths,embeddings,_,test_auc_roc = evaluate(args, fold, data_loader_test, model, device,args.task,epoch, mode='test',num_class=args.nb_classes, save_images=args.save_images)
                 
                 true_labels_list.extend(gt)
                 output_prob_list.extend(out_prob)
@@ -505,7 +519,7 @@ def main(args):
                 embeddings_lists_main.extend(embedding_lists)
                 img_paths_main.extend(img_paths)
 
-                    # _,_,_,_,_,_,_ = evaluate(args, data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=args.save_images)
+                    # _,_,_,_,_,_,_ = evaluate(args, fold, data_loader_val, model, device,args.task,epoch, mode='val',num_class=args.nb_classes, save_images=args.save_images)
             # else:
             #     misc.save_model(
             #         args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
@@ -514,9 +528,9 @@ def main(args):
         # Plot train/val loss
         misc.plot_loss(train_loss, val_loss, fold, args)    
 
-        if val: test_aurocs += test_auc_roc
-        if fold == folds-1:
-            print(f'\n\nAverage test AUROC: {test_aurocs/folds}\n')
+        if val and not args.train_all: test_aurocs += test_auc_roc
+        if fold == args.folds-1 and not args.train_all:
+            print(f'\n\nAverage test AUROC: {test_aurocs/args.folds}\n')
             # print(f'\nLen of true label and pred list: {len(true_labels_list)} and {len(preds_list)}')
             # print(f'\nOne true label: {true_labels_list[0]}')
             # print(f'\nOne pred: {preds_list[0]}')
@@ -525,7 +539,8 @@ def main(args):
             print(f'\n\nAverage test AUROC for all images: {auc_roc_all}\n')
 
     # Save image paths, true labels, output probs, and embeddings to a CSV file
-    misc.save_test_data(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main, args)
+    if not args.train_all:
+        misc.save_test_data(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main, args)
         
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
