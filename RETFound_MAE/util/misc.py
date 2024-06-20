@@ -292,8 +292,13 @@ def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
 def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler):
     output_dir = Path(args.output_dir)
     epoch_name = str(epoch)
+
+    folder_name = f'checkpoint_{args.run_date}_epochs{args.epochs}'
+    if not os.path.exists(args.task+folder_name):
+        os.makedirs(args.task+folder_name)
+
     if loss_scaler is not None:
-        checkpoint_paths = [args.task+'checkpoint-best.pth']
+        checkpoint_paths = [args.task+folder_name+'/checkpoint-best.pth']
         for checkpoint_path in checkpoint_paths:
             to_save = {
                 'model': model_without_ddp.state_dict(),
@@ -306,7 +311,7 @@ def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler):
             save_on_master(to_save, checkpoint_path)
     else:
         client_state = {'epoch': epoch}
-        model.save_checkpoint(save_dir=args.task, tag="checkpoint-best", client_state=client_state)
+        model.save_checkpoint(save_dir=args.task+folder_name+'/', tag="checkpoint-best", client_state=client_state)
 
 
 def load_model(args, model_without_ddp, optimizer, loss_scaler):
@@ -339,13 +344,11 @@ def all_reduce_mean(x):
 def plot_loss(train_loss, val_loss, fold, args):
 
     # Get today's year, month, day
-    today = datetime.date.today()
-    today = today.strftime('%Y%m%d')
+    # today = datetime.date.today()
+    # today = today.strftime('%Y%m%d')
     
     # folder_name = f'loss_{today}_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
-    folder_name = f'loss_{today}_epochs{args.epochs}'
-
-    # Create folder if it does not exist
+    folder_name = f'loss_{args.run_date}_epochs{args.epochs}'
     if not os.path.exists(args.task+folder_name):
         os.makedirs(args.task+folder_name)
 
@@ -365,7 +368,7 @@ def save_test_data(img_paths_main, true_labels_list, output_prob_list, embedding
     data = list(zip(img_paths_main, true_labels_list, output_prob_list, embeddings_lists_main))
 
     # Specify the CSV file path
-    csv_file_path = args.task + f'embeddings.csv'
+    csv_file_path = args.task + f'{args.run_date}_{args.epochs}_embeddings.csv'
 
     # Write the data to the CSV file
     with open(csv_file_path, 'w', newline='') as csv_file:
