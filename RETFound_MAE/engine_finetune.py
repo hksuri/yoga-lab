@@ -27,8 +27,8 @@ from PIL import Image
 from vit_rollout import VITAttentionRollout
 from vit_grad_rollout import VITAttentionGradRollout
 from vit_explain import LRP
-
 from gradcam import run_cam
+from mm_explain import generate_visualization
 
 def misc_measures(confusion_matrix):
     
@@ -146,7 +146,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
 
 # @torch.no_grad()
-def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save_images):
+def evaluate(args, fold, data_loader, model, device, task, epoch, mode, num_class,save_images):
     print(f'Mode: {mode}')
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -161,11 +161,11 @@ def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save
     # Create new folder named test_images in task. Delete if exists already
 
     # Get today's year month day
-    today = datetime.today()
-    today = today.strftime("%Y%m%d")
+    # today = datetime.date.today()
+    # today = today.strftime('%Y%m%d')
 
     # folder_name = f'test_images_{today}_epochs{args.epochs}_discard{args.discard_ratio}_{args.head_fusion}'
-    folder_name = f'test_images_{today}_epochs{args.epochs}_gradcam'
+    folder_name = f'test_images_{args.run_date}_epochs{args.epochs}_gradcam'
     if save_images:
     
         if not os.path.exists(task+folder_name):
@@ -261,7 +261,10 @@ def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save
 
                 # cam = heatmap + np.float32(img)
                 # cam = cam / np.max(cam)
+
                 cam = run_cam(model, path, args, method='gradcam')
+                # cam = generate_visualization(model, path)
+
                 img = np.uint8(255 * img)
                 cam = cv2.hconcat([img, cam])
                 # cam = np.uint8(255 * cam)
@@ -298,11 +301,15 @@ def evaluate(args, data_loader, model, device, task, epoch, mode, num_class,save
         data2=[[acc,sensitivity,specificity,precision,auc_roc,auc_pr,F1,mcc,metric_logger.loss]]
         for i in data2:
             wf.writerow(i)
+
+    folder_name = f'loss_{args.run_date}_epochs{args.epochs}'
+    if not os.path.exists(args.task+folder_name):
+        os.makedirs(args.task+folder_name)
             
     if mode=='test':
         cm = ConfusionMatrix(actual_vector=true_label_decode_list, predict_vector=prediction_decode_list)
         cm.plot(cmap=plt.cm.Blues,number_label=True,normalized=True,plot_lib="matplotlib")
-        plt.savefig(task+'confusion_matrix_test.jpg',dpi=600,bbox_inches ='tight')
+        plt.savefig(task+folder_name+f'/confusion_matrix_test_{fold}.jpg',dpi=600,bbox_inches ='tight')
     
     return true_label_onehot_list,output_prob_list,prediction_list,image_paths, model_embeddings,{k: meter.global_avg for k, meter in metric_logger.meters.items()},auc_roc
 
