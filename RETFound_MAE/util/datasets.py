@@ -13,7 +13,8 @@ from PIL import Image
 import random
 from random import shuffle
 from sklearn.model_selection import StratifiedKFold
-import Counter
+from sklearn.model_selection import train_test_split
+from collections import defaultdict, Counter
 import torch
 
 def extract_class_from_image_name(image_name, rf):
@@ -23,37 +24,50 @@ def extract_class_from_image_name(image_name, rf):
     return label
 
 def determine_mrn_classes(main_directory, rf):
-    """Determine the class of each MRN based on the first image in its directory."""
-    mrn_classes = {}
-    for mrn_folder in os.listdir(main_directory):
-        mrn_path = os.path.join(main_directory, mrn_folder)
-        if os.path.isdir(mrn_path):
-            images = sorted(os.listdir(mrn_path))
-            if images:
-                reference_image = images[0]
-                class_name = extract_class_from_image_name(reference_image, rf)
-                mrn_classes[mrn_folder] = class_name
-    return mrn_classes
+
+    if rf == 'nevusNoNevus':
+        return determine_mrn_classes_nevus_nonevus(main_directory)
+    else:
+        """Determine the class of each MRN based on the first image in its directory."""
+        mrn_classes = {}
+        for mrn_folder in os.listdir(main_directory):
+            mrn_path = os.path.join(main_directory, mrn_folder)
+            if os.path.isdir(mrn_path):
+                images = sorted(os.listdir(mrn_path))
+                if images:
+                    reference_image = images[0]
+                    class_name = extract_class_from_image_name(reference_image, rf)
+                    mrn_classes[mrn_folder] = class_name
+        return mrn_classes
 
 def create_nested_stratified_folds(mrn_classes, outer_splits=5, inner_split_ratio=0.875):
     """Create nested stratified folds with a structure for train, validation, and test sets."""
-    mrns = np.array(list(mrn_classes.keys()))
-    classes = np.array(list(mrn_classes.values()))
-    outer_skf = StratifiedKFold(n_splits=outer_splits, shuffle=True, random_state=42)
+
+    mrns = list(mrn_classes.keys())
+    classes = list(mrn_classes.values())
+
+    if outer_splits == 1:
+        train_mrn, test_mrn = train_test_split(mrns, test_size=0.2, stratify=classes)
+        return [train_mrn, test_mrn]
     
-    folds = []
-    for trainval_index, test_index in outer_skf.split(mrns, classes):
-        trainval_mrns, test_mrns = mrns[trainval_index], mrns[test_index]
-        trainval_classes = classes[trainval_index]
-
-        inner_skf = StratifiedKFold(n_splits=int(1/(1-inner_split_ratio)), shuffle=True, random_state=42)
-        train_index, val_index = next(inner_skf.split(trainval_mrns, trainval_classes))
-
-        train_mrns, val_mrns = trainval_mrns[train_index], trainval_mrns[val_index]
+    else:
+        mrns = np.array(mrns)
+        classes = np.array(classes)
+        outer_skf = StratifiedKFold(n_splits=outer_splits, shuffle=True, random_state=42)
         
-        folds.append([train_mrns.tolist(), val_mrns.tolist(), test_mrns.tolist()])
-        
-    return folds
+        folds = []
+        for trainval_index, test_index in outer_skf.split(mrns, classes):
+            trainval_mrns, test_mrns = mrns[trainval_index], mrns[test_index]
+            trainval_classes = classes[trainval_index]
+
+            inner_skf = StratifiedKFold(n_splits=int(1/(1-inner_split_ratio)), shuffle=True, random_state=42)
+            train_index, val_index = next(inner_skf.split(trainval_mrns, trainval_classes))
+
+            train_mrns, val_mrns = trainval_mrns[train_index], trainval_mrns[val_index]
+            
+            folds.append([train_mrns.tolist(), val_mrns.tolist(), test_mrns.tolist()])
+            
+        return folds
 
 def calculate_weights(mrn_classes):
     # Counting the occurrences of each class
@@ -80,7 +94,10 @@ def calculate_weights(mrn_classes):
 
 def build_dataset(is_train, mrn_list, args):
     transform = build_transform(is_train, args)
-    dataset = CustomDataset(args.data_path, mrn_list, args.rf, transform, is_train)
+    if args.rf == 'nevusNoNevus':
+        dataset = Nevus_NoNevus_Dataset(args.data_path, mrn_list, transform, is_train)
+    else:
+        dataset = RFDataset(args.data_path, mrn_list, args.rf, transform, is_train)
     return dataset
 
 # def build_dataset(is_train, args):
@@ -239,7 +256,7 @@ def build_transform(is_train, args):
 #         image = self.transform(image)
 #         return img_path, image, label
 
-class CustomDataset(Dataset):
+class RFDataset(Dataset):
 
     def __init__(self, root_dir, mrn_list, rf, transform, is_train):
         self.root_dir = root_dir
@@ -248,8 +265,8 @@ class CustomDataset(Dataset):
         self.rf = self.rf_type[rf]
         self.transform = transform
         self.data = self.load_data()
-        # if is_train=='train':
-        #     self.data = self.oversample_data()
+        if is_train=='train':
+            self.data = self.oversample_data()
         class_counts = {0: 0, 1: 0}
         for _, label in self.data:
             class_counts[label] += 1
@@ -303,4 +320,98 @@ class CustomDataset(Dataset):
         img_path, label = self.data[idx]
         image = Image.open(img_path)                                    
         image = self.transform(image)
+        return img_path, image, label
+    
+################################## Nevus Detector #############################################
+
+def determine_mrn_classes_nevus_nonevus(root_dir):
+    class_dirs = {
+        'nevus_data_500_risk_factors_June2024_final': 1,
+        'Dalvin_nevus_std_Normal_COLOR_final_processed': 0
+    }
+    mrn_class_count = defaultdict(Counter)
+    for dir_name, class_label in class_dirs.items():
+        class_dir = os.path.join(root_dir, dir_name)
+        for mrn in os.listdir(class_dir):
+            mrn_dir = os.path.join(class_dir, mrn)
+            if os.path.isdir(mrn_dir):
+                # Count each image for the MRN under this class
+                mrn_class_count[mrn][class_label] += len(os.listdir(mrn_dir))
+    
+    # Determine predominant class for each MRN
+    mrn_to_class = {}
+    for mrn, counts in mrn_class_count.items():
+        # Select the class with the maximum count
+        predominant_class = counts.most_common(1)[0][0]
+        mrn_to_class[mrn] = predominant_class
+    
+    return mrn_to_class
+    
+class Nevus_NoNevus_Dataset(Dataset):
+    def __init__(self, root_dir, mrns, transform, is_train):
+        self.root_dir = root_dir
+        self.mrns = mrns
+        self.transform = transform
+        self.data = []
+        self._load_data()
+
+        # if is_train=='train':
+        #     self.data = self.oversample_data()
+
+        # Print class counts in data
+        class_counts = Counter([label for _, label in self.data])
+        print(f"Class counts: {class_counts}")
+
+    def _load_data(self):
+        # Load data from the two directories
+        class_dirs = {
+            'nevus_data_500_risk_factors_June2024_final': 1,
+            'Dalvin_nevus_std_Normal_COLOR_final_processed': 0
+        }
+        for dir_name, label in class_dirs.items():
+            class_dir = os.path.join(self.root_dir, dir_name)
+            for mrn in self.mrns:
+                mrn_dir = os.path.join(class_dir, mrn)
+                if os.path.isdir(mrn_dir):
+                    for img_name in os.listdir(mrn_dir):
+                        img_path = os.path.join(mrn_dir, img_name)
+                        self.data.append((img_path, label))
+
+    def oversample_data(self):
+        class_counts = {0: 0, 1: 0}
+        for _, label in self.data:
+            class_counts[label] += 1
+
+        # Find the majority class
+        majority_class = max(class_counts, key=class_counts.get)
+        minority_class = 1 - majority_class
+
+        # Calculate oversampling ratio
+        oversample_ratio = class_counts[majority_class] // class_counts[minority_class]
+
+        oversampled_data = []
+        for item in self.data:
+            if item[1] == minority_class:
+                # Oversample minority class items
+                oversampled_data.extend([item] * oversample_ratio)
+            else:
+                oversampled_data.append(item)
+
+        # Count and print number of items in each class
+        oversampled_class_counts = {0: 0, 1: 0}
+        for _, label in oversampled_data:
+            oversampled_class_counts[label] += 1
+        print(f"Class counts before oversampling: {class_counts}")
+        print(f"Class counts after oversampling: {oversampled_class_counts}")
+
+        return oversampled_data
+    
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        img_path, label = self.data[idx]
+        image = Image.open(img_path).convert('RGB')
+        if self.transform:
+            image = self.transform(image)
         return img_path, image, label
